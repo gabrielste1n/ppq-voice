@@ -34,7 +34,7 @@ class UpdateManager {
     autoUpdater.setFeedURL({
       provider: "github",
       owner: "HeroTools",
-      repo: "open-whispr",
+      repo: "ppq-voice",
       private: false,
     });
 

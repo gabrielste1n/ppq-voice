@@ -2,14 +2,11 @@ import React, { useState, useCallback, useEffect, useRef } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { RefreshCw, Download, Keyboard, Mic, Shield } from "lucide-react";
-import WhisperModelPicker from "./WhisperModelPicker";
-import ProcessingModeSelector from "./ui/ProcessingModeSelector";
 import ApiKeyInput from "./ui/ApiKeyInput";
 import { ConfirmDialog, AlertDialog } from "./ui/dialog";
 import { useSettings } from "../hooks/useSettings";
 import { useDialogs } from "../hooks/useDialogs";
 import { useAgentName } from "../utils/agentName";
-import { useWhisper } from "../hooks/useWhisper";
 import { usePermissions } from "../hooks/usePermissions";
 import { useClipboard } from "../hooks/useClipboard";
 import { REASONING_PROVIDERS } from "../utils/languages";
@@ -46,11 +43,6 @@ export default function SettingsPage({
   } = useDialogs();
 
   const {
-    useLocalWhisper,
-    whisperModel,
-    allowOpenAIFallback,
-    allowLocalFallback,
-    fallbackWhisperModel,
     preferredLanguage,
     cloudTranscriptionBaseUrl,
     cloudReasoningBaseUrl,
@@ -61,17 +53,11 @@ export default function SettingsPage({
     anthropicApiKey,
     geminiApiKey,
     dictationKey,
-    setUseLocalWhisper,
-    setWhisperModel,
-    setAllowOpenAIFallback,
-    setAllowLocalFallback,
-    setFallbackWhisperModel,
     setPreferredLanguage,
     setCloudTranscriptionBaseUrl,
     setCloudReasoningBaseUrl,
     setUseReasoningModel,
     setReasoningModel,
-    setReasoningProvider,
     setOpenaiApiKey,
     setAnthropicApiKey,
     setGeminiApiKey,
@@ -97,17 +83,11 @@ export default function SettingsPage({
     releaseDate?: string;
     releaseNotes?: string;
   }>({});
-  const [isRemovingModels, setIsRemovingModels] = useState(false);
-  const cachePathHint =
-    typeof navigator !== "undefined" && /Windows/i.test(navigator.userAgent)
-      ? "%USERPROFILE%\\.cache\\openwhispr\\models"
-      : "~/.cache/openwhispr/models";
 
   const isUpdateAvailable =
     !updateStatus.isDevelopment &&
     (updateStatus.updateAvailable || updateStatus.updateDownloaded);
 
-  const whisperHook = useWhisper(showAlertDialog);
   const permissionsHook = usePermissions(showAlertDialog);
   const { pasteFromClipboardWithFallback } = useClipboard(showAlertDialog);
   const { agentName, setAgentName } = useAgentName();
@@ -205,10 +185,6 @@ export default function SettingsPage({
 
       subscribeToUpdates();
 
-      // Check whisper after initial render
-      if (mounted) {
-        whisperHook.checkWhisperInstallation();
-      }
     }, 100);
 
     return () => {
@@ -223,7 +199,7 @@ export default function SettingsPage({
         window.electronAPI.removeAllListeners?.("update-download-progress");
       }
     };
-  }, [whisperHook, subscribeToUpdates]);
+  }, [subscribeToUpdates]);
 
   useEffect(() => {
     if (installInitiated) {
@@ -235,7 +211,7 @@ export default function SettingsPage({
         showAlertDialog({
           title: "Still Running",
           description:
-            "OpenWhispr didn't restart automatically. Please quit the app manually to finish installing the update.",
+            "PPQ Voice didn't restart automatically. Please quit the app manually to finish installing the update.",
         });
       }, 10000);
     } else if (installTimeoutRef.current) {
@@ -313,7 +289,6 @@ export default function SettingsPage({
 
   const saveApiKey = useCallback(async () => {
     try {
-      // Save all API keys to backend
       if (openaiApiKey) {
         await window.electronAPI?.saveOpenAIKey(openaiApiKey);
       }
@@ -323,56 +298,40 @@ export default function SettingsPage({
       if (geminiApiKey) {
         await window.electronAPI?.saveGeminiKey(geminiApiKey);
       }
-      
-      updateApiKeys({ openaiApiKey, anthropicApiKey, geminiApiKey });
-      updateTranscriptionSettings({ allowLocalFallback, fallbackWhisperModel });
 
-      try {
-        if (openaiApiKey) {
-          await window.electronAPI?.createProductionEnvFile(openaiApiKey);
-        }
-        
-        const savedKeys: string[] = [];
-        if (openaiApiKey) savedKeys.push("OpenAI");
-        if (anthropicApiKey) savedKeys.push("Anthropic");
-        if (geminiApiKey) savedKeys.push("Gemini");
-        
-        showAlertDialog({
-          title: "API Keys Saved",
-          description: `${savedKeys.join(", ")} API key${savedKeys.length > 1 ? 's' : ''} saved successfully! Your credentials have been securely recorded.${
-            allowLocalFallback ? " Local Whisper fallback is enabled." : ""
-          }`,
-        });
-      } catch (envError) {
-        showAlertDialog({
-          title: "API Key Saved",
-          description: `OpenAI API key saved successfully and will be available for transcription${
-            allowLocalFallback ? " with Local Whisper fallback enabled" : ""
-          }`,
-        });
+      updateApiKeys({ openaiApiKey, anthropicApiKey, geminiApiKey });
+
+      if (openaiApiKey) {
+        await window.electronAPI?.createProductionEnvFile(openaiApiKey);
       }
+
+      const savedKeys: string[] = [];
+      if (openaiApiKey) savedKeys.push("OpenAI");
+      if (anthropicApiKey) savedKeys.push("Anthropic");
+      if (geminiApiKey) savedKeys.push("Gemini");
+
+      showAlertDialog({
+        title: "API Keys Saved",
+        description: `${savedKeys.join(", ")} API key${savedKeys.length > 1 ? "s" : ""} saved successfully! Your credentials have been securely recorded.`,
+      });
     } catch (error) {
       console.error("Failed to save API key:", error);
       updateApiKeys({ openaiApiKey });
-      updateTranscriptionSettings({ allowLocalFallback, fallbackWhisperModel });
       showAlertDialog({
-        title: "API Key Saved",
-        description: "OpenAI API key saved to localStorage (fallback mode)",
+        title: "Save Failed",
+        description: "We couldn't persist your API keys. Please try again.",
       });
     }
   }, [
     openaiApiKey,
     anthropicApiKey,
     geminiApiKey,
-    allowLocalFallback,
-    fallbackWhisperModel,
     updateApiKeys,
-    updateTranscriptionSettings,
     showAlertDialog,
   ]);
 
   const resetAccessibilityPermissions = () => {
-    const message = `🔄 RESET ACCESSIBILITY PERMISSIONS\n\nIf you've rebuilt or reinstalled OpenWhispr and automatic inscription isn't functioning, you may have obsolete permissions from the previous version.\n\n📋 STEP-BY-STEP RESTORATION:\n\n1️⃣ Open System Settings (or System Preferences)\n   • macOS Ventura+: Apple Menu → System Settings\n   • Older macOS: Apple Menu → System Preferences\n\n2️⃣ Navigate to Privacy & Security → Accessibility\n\n3️⃣ Look for obsolete OpenWhispr entries:\n   • Any entries named "OpenWhispr"\n   • Any entries named "Electron"\n   • Any entries with unclear or generic names\n   • Entries pointing to old application locations\n\n4️⃣ Remove ALL obsolete entries:\n   • Select each old entry\n   • Click the minus (-) button\n   • Enter your password if prompted\n\n5️⃣ Add the current OpenWhispr:\n   • Click the plus (+) button\n   • Navigate to and select the CURRENT OpenWhispr app\n   • Ensure the checkbox is ENABLED\n\n6️⃣ Restart OpenWhispr completely\n\n💡 This is very common during development when rebuilding applications!\n\nClick OK when you're ready to open System Settings.`;
+    const message = `🔄 RESET ACCESSIBILITY PERMISSIONS\n\nIf you've rebuilt or reinstalled PPQ Voice and automatic inscription isn't functioning, you may have obsolete permissions from the previous version.\n\n📋 STEP-BY-STEP RESTORATION:\n\n1️⃣ Open System Settings (or System Preferences)\n   • macOS Ventura+: Apple Menu → System Settings\n   • Older macOS: Apple Menu → System Preferences\n\n2️⃣ Navigate to Privacy & Security → Accessibility\n\n3️⃣ Look for obsolete PPQ Voice entries:\n   • Any entries named "PPQ Voice"\n   • Any entries named "Electron"\n   • Any entries with unclear or generic names\n   • Entries pointing to old application locations\n\n4️⃣ Remove ALL obsolete entries:\n   • Select each old entry\n   • Click the minus (-) button\n   • Enter your password if prompted\n\n5️⃣ Add the current PPQ Voice:\n   • Click the plus (+) button\n   • Navigate to and select the CURRENT PPQ Voice app\n   • Ensure the checkbox is ENABLED\n\n6️⃣ Restart PPQ Voice completely\n\n💡 This is very common during development when rebuilding applications!\n\nClick OK when you're ready to open System Settings.`;
 
     showConfirmDialog({
       title: "Reset Accessibility Permissions",
@@ -419,51 +378,6 @@ export default function SettingsPage({
     }
   };
 
-  const handleRemoveModels = useCallback(() => {
-    if (isRemovingModels) return;
-
-    showConfirmDialog({
-      title: "Remove downloaded models?",
-      description:
-        `This deletes all locally cached Whisper models (${cachePathHint}) and frees disk space. You can download them again from the model picker.`,
-      confirmText: "Delete Models",
-      variant: "destructive",
-      onConfirm: () => {
-        setIsRemovingModels(true);
-        window.electronAPI
-          ?.modelDeleteAll?.()
-          .then((result) => {
-            if (!result?.success) {
-              showAlertDialog({
-                title: "Unable to Remove Models",
-                description:
-                  result?.error ||
-                  "Something went wrong while deleting the cached models.",
-              });
-              return;
-            }
-
-            window.dispatchEvent(new Event("openwhispr-models-cleared"));
-
-            showAlertDialog({
-              title: "Models Removed",
-              description:
-                "All downloaded Whisper models were deleted. You can re-download any model from the picker when needed.",
-            });
-          })
-          .catch((error) => {
-            showAlertDialog({
-              title: "Unable to Remove Models",
-              description: error?.message || "An unknown error occurred.",
-            });
-          })
-          .finally(() => {
-            setIsRemovingModels(false);
-          });
-      },
-    });
-  }, [isRemovingModels, cachePathHint, showConfirmDialog, showAlertDialog]);
-
   const renderSectionContent = () => {
     switch (activeSection) {
       case "general":
@@ -476,7 +390,7 @@ export default function SettingsPage({
                   App Updates
                 </h3>
                 <p className="text-sm text-gray-600 mb-4">
-                  Keep OpenWhispr up to date with the latest features and
+                  Keep PPQ Voice up to date with the latest features and
                   improvements.
                 </p>
               </div>
@@ -632,7 +546,7 @@ export default function SettingsPage({
                             showAlertDialog({
                               title: "Installing Update",
                               description:
-                                "OpenWhispr will restart automatically to finish installing the newest version.",
+                                "PPQ Voice will restart automatically to finish installing the newest version.",
                             });
                           } catch (error: any) {
                             setInstallInitiated(false);
@@ -777,10 +691,10 @@ export default function SettingsPage({
             <div className="border-t pt-8">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  About OpenWhispr
+                  About PPQ Voice
                 </h3>
                 <p className="text-sm text-gray-600 mb-6">
-                  OpenWhispr converts your speech to text using AI. Press your
+                  PPQ Voice converts your speech to text using AI. Press your
                   hotkey, speak, and we'll type what you said wherever your
                   cursor is.
                 </p>
@@ -841,7 +755,7 @@ export default function SettingsPage({
                     showConfirmDialog({
                       title: "⚠️ DANGER: Cleanup App Data",
                       description:
-                        "This will permanently delete ALL OpenWhispr data including:\n\n• Database and transcriptions\n• Local storage settings\n• Downloaded Whisper models\n• Environment files\n\nYou will need to manually remove app permissions in System Settings.\n\nThis action cannot be undone. Are you sure?",
+                        "This will permanently delete ALL PPQ Voice data including:\n\n• Database and transcriptions\n• Local storage settings\n• Cached logs and preferences\n• Environment files\n\nYou will need to manually remove app permissions in System Settings.\n\nThis action cannot be undone. Are you sure?",
                       onConfirm: () => {
                         window.electronAPI
                           ?.cleanupApp()
@@ -873,23 +787,6 @@ export default function SettingsPage({
                 </Button>
               </div>
 
-              <div className="space-y-3 mt-6 p-4 bg-rose-50 border border-rose-200 rounded-xl">
-                <h4 className="font-medium text-rose-900">Local Model Storage</h4>
-                <p className="text-sm text-rose-800">
-                  Remove all downloaded Whisper models from your cache directory to reclaim disk space. You can re-download any model later.
-                </p>
-                <Button
-                  variant="destructive"
-                  onClick={handleRemoveModels}
-                  disabled={isRemovingModels}
-                  className="w-full"
-                >
-                  {isRemovingModels ? "Removing models..." : "Remove Downloaded Models"}
-                </Button>
-                <p className="text-xs text-rose-700">
-                  Current cache location: <code>{cachePathHint}</code>
-                </p>
-              </div>
             </div>
           </div>
         );
@@ -901,113 +798,87 @@ export default function SettingsPage({
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 Speech to Text Processing
               </h3>
-              <ProcessingModeSelector
-                useLocalWhisper={useLocalWhisper}
-                setUseLocalWhisper={(value) => {
-                  setUseLocalWhisper(value);
-                  updateTranscriptionSettings({ useLocalWhisper: value });
-                }}
-              />
+              <p className="text-sm text-gray-600">
+                PPQ Voice uses your OpenAI account for transcription. Enter your key once and we'll securely store it for future sessions.
+              </p>
             </div>
 
-            {!useLocalWhisper && (
-              <div className="space-y-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
-                <h4 className="font-medium text-blue-900">OpenAI-Compatible Cloud Setup</h4>
-                <ApiKeyInput
-                  apiKey={openaiApiKey}
-                  setApiKey={setOpenaiApiKey}
-                  helpText="Supports OpenAI or compatible endpoints"
+            <div className="space-y-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+              <h4 className="font-medium text-blue-900">OpenAI-Compatible Cloud Setup</h4>
+              <ApiKeyInput
+                apiKey={openaiApiKey}
+                setApiKey={setOpenaiApiKey}
+                helpText="Supports OpenAI or compatible endpoints"
+              />
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-blue-900">
+                  Custom Base URL (optional)
+                </label>
+                <Input
+                  value={cloudTranscriptionBaseUrl}
+                  onChange={(event) => setCloudTranscriptionBaseUrl(event.target.value)}
+                  placeholder="https://api.openai.com/v1"
+                  className="text-sm"
                 />
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-blue-900">
-                    Custom Base URL (optional)
-                  </label>
-                  <Input
-                    value={cloudTranscriptionBaseUrl}
-                    onChange={(event) => setCloudTranscriptionBaseUrl(event.target.value)}
-                    placeholder="https://api.openai.com/v1"
-                    className="text-sm"
-                  />
-                  <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setCloudTranscriptionBaseUrl(API_ENDPOINTS.TRANSCRIPTION_BASE)}
-                    >
-                      Reset to Default
-                    </Button>
-                  </div>
-                  <p className="text-xs text-blue-800">
-                    Requests for cloud transcription use this OpenAI-compatible base URL. Leave empty to fall back to
-                    <code className="ml-1">{API_ENDPOINTS.TRANSCRIPTION_BASE}</code>.
-                  </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCloudTranscriptionBaseUrl(API_ENDPOINTS.TRANSCRIPTION_BASE)}
+                  >
+                    Reset to Default
+                  </Button>
                 </div>
+                <p className="text-xs text-blue-800">
+                  Requests for cloud transcription use this OpenAI-compatible base URL. Leave empty to fall back to
+                  <code className="ml-1">{API_ENDPOINTS.TRANSCRIPTION_BASE}</code>.
+                </p>
               </div>
-            )}
-
-            {useLocalWhisper && whisperHook.whisperInstalled && (
-            <div className="space-y-4 p-4 bg-purple-50 border border-purple-200 rounded-xl">
-              <h4 className="font-medium text-purple-900">
-                Local Whisper Model
-              </h4>
-              <WhisperModelPicker
-                selectedModel={whisperModel}
-                onModelSelect={setWhisperModel}
-                variant="settings"
-              />
             </div>
-          )}
 
-          <div className="space-y-4 p-4 bg-gray-50 border border-gray-200 rounded-xl">
-            <h4 className="font-medium text-gray-900">Preferred Language</h4>
-            <LanguageSelector
-              value={preferredLanguage}
-              onChange={(value) => {
-                setPreferredLanguage(value);
-                updateTranscriptionSettings({ preferredLanguage: value });
+            <div className="space-y-4 p-4 bg-gray-50 border border-gray-200 rounded-xl">
+              <h4 className="font-medium text-gray-900">Preferred Language</h4>
+              <LanguageSelector
+                value={preferredLanguage}
+                onChange={(value) => {
+                  setPreferredLanguage(value);
+                  updateTranscriptionSettings({ preferredLanguage: value });
+                }}
+                className="w-full"
+              />
+              <p className="text-xs text-gray-600">
+                This helps the transcription model understand you faster and with higher accuracy.
+              </p>
+            </div>
+
+            <Button
+              onClick={() => {
+                const normalizedTranscriptionBase = (cloudTranscriptionBaseUrl || '').trim();
+                setCloudTranscriptionBaseUrl(normalizedTranscriptionBase);
+
+                updateTranscriptionSettings({
+                  preferredLanguage,
+                  cloudTranscriptionBaseUrl: normalizedTranscriptionBase,
+                });
+
+                if (openaiApiKey.trim()) {
+                  updateApiKeys({ openaiApiKey });
+                }
+
+                const baseLabel = normalizedTranscriptionBase || API_ENDPOINTS.TRANSCRIPTION_BASE;
+
+                showAlertDialog({
+                  title: "Settings Saved",
+                  description: `Cloud transcription enabled via ${baseLabel}. Language preference: ${preferredLanguage}.`,
+                });
               }}
               className="w-full"
-            />
+            >
+              Save Transcription Settings
+            </Button>
           </div>
-
-          <Button
-            onClick={() => {
-              const normalizedTranscriptionBase = (cloudTranscriptionBaseUrl || '').trim();
-              setCloudTranscriptionBaseUrl(normalizedTranscriptionBase);
-
-              updateTranscriptionSettings({
-                useLocalWhisper,
-                whisperModel,
-                preferredLanguage,
-                cloudTranscriptionBaseUrl: normalizedTranscriptionBase,
-              });
-
-              if (!useLocalWhisper && openaiApiKey.trim()) {
-                updateApiKeys({ openaiApiKey });
-              }
-
-              const descriptionParts = [
-                `Transcription mode: ${useLocalWhisper ? 'Local Whisper' : 'Cloud'}.`,
-                `Language: ${preferredLanguage}.`,
-              ];
-
-              if (!useLocalWhisper) {
-                const baseLabel = normalizedTranscriptionBase || API_ENDPOINTS.TRANSCRIPTION_BASE;
-                descriptionParts.push(`Endpoint: ${baseLabel}.`);
-              }
-
-              showAlertDialog({
-                title: "Settings Saved",
-                description: descriptionParts.join(' '),
-              });
-            }}
-            className="w-full"
-          >
-            Save Transcription Settings
-          </Button>
-        </div>
-      );
+        );
 
       case "aiModels":
         return (
@@ -1147,7 +1018,7 @@ export default function SettingsPage({
                 AI Prompt Management
               </h3>
               <p className="text-sm text-gray-600 mb-6">
-                View and customize the prompts that power OpenWhispr's AI text processing. 
+                View and customize the prompts that power PPQ Voice's AI text processing. 
                 Adjust these to change how your transcriptions are formatted and enhanced.
               </p>
             </div>

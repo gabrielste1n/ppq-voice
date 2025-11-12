@@ -9,7 +9,6 @@ import {
   Check,
   Settings,
   Mic,
-  Download,
   Key,
   Shield,
   Keyboard,
@@ -20,16 +19,12 @@ import {
   User,
 } from "lucide-react";
 import TitleBar from "./TitleBar";
-import WhisperModelPicker from "./WhisperModelPicker";
-import ProcessingModeSelector from "./ui/ProcessingModeSelector";
 import ApiKeyInput from "./ui/ApiKeyInput";
 import PermissionCard from "./ui/PermissionCard";
 import StepProgress from "./ui/StepProgress";
 import { AlertDialog } from "./ui/dialog";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 import { useDialogs } from "../hooks/useDialogs";
-import { useWhisper } from "../hooks/useWhisper";
-import { usePython } from "../hooks/usePython";
 import { usePermissions } from "../hooks/usePermissions";
 import { useClipboard } from "../hooks/useClipboard";
 import { useSettings } from "../hooks/useSettings";
@@ -64,8 +59,6 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
   );
 
   const {
-    useLocalWhisper,
-    whisperModel,
     preferredLanguage,
     cloudTranscriptionBaseUrl,
     cloudReasoningBaseUrl,
@@ -73,12 +66,9 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
     reasoningModel,
     openaiApiKey,
     dictationKey,
-    setUseLocalWhisper,
-    setWhisperModel,
     setPreferredLanguage,
     setCloudTranscriptionBaseUrl,
     setCloudReasoningBaseUrl,
-    setOpenaiApiKey,
     setDictationKey,
     updateTranscriptionSettings,
     updateReasoningSettings,
@@ -260,8 +250,6 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
     return match?.label || reasoningModel;
   }, [displayedReasoningModels, reasoningModel]);
 
-  const whisperHook = useWhisper(showAlertDialog);
-  const pythonHook = usePython(showAlertDialog);
   const permissionsHook = usePermissions(showAlertDialog);
   const { pasteFromClipboard } = useClipboard(showAlertDialog);
 
@@ -275,18 +263,6 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
     { title: "Agent Name", icon: User },
     { title: "Finish", icon: Check },
   ];
-
-  useEffect(() => {
-    whisperHook.setupProgressListener();
-    return () => {
-      // Clean up listeners on unmount
-      window.electronAPI?.removeAllListeners?.("whisper-install-progress");
-    };
-  }, []);
-
-  const updateProcessingMode = (useLocal: boolean) => {
-    updateTranscriptionSettings({ useLocalWhisper: useLocal });
-  };
 
   useEffect(() => {
     if (currentStep === 5) {
@@ -304,7 +280,6 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
     setCloudReasoningBaseUrl(normalizedReasoningBaseValue);
 
     updateTranscriptionSettings({
-      whisperModel,
       preferredLanguage,
       cloudTranscriptionBaseUrl: normalizedTranscriptionBase,
     });
@@ -343,18 +318,16 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
     );
     localStorage.setItem("onboardingCompleted", "true");
 
-    if (!useLocalWhisper && apiKey.trim()) {
+    if (apiKey.trim()) {
       await window.electronAPI.saveOpenAIKey(apiKey);
       updateApiKeys({ openaiApiKey: apiKey });
     }
   }, [
-    whisperModel,
     hotkey,
     preferredLanguage,
     agentName,
     permissionsHook.micPermissionGranted,
     permissionsHook.accessibilityPermissionGranted,
-    useLocalWhisper,
     apiKey,
     transcriptionBaseUrl,
     reasoningBaseUrl,
@@ -410,7 +383,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
                 className="text-2xl font-bold text-stone-900 mb-2"
                 style={{ fontFamily: "Noto Sans, sans-serif" }}
               >
-                Welcome to OpenWhispr
+                Welcome to PPQ Voice
               </h2>
               <p
                 className="text-stone-600"
@@ -434,31 +407,44 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
           </div>
         );
 
-      case 1: // Choose Mode
+      case 1: // Privacy
         return (
-          <div
-            className="space-y-6"
-            style={{ fontFamily: "Noto Sans, sans-serif" }}
-          >
+          <div className="space-y-6" style={{ fontFamily: "Noto Sans, sans-serif" }}>
             <div className="text-center">
-              <h2
-                className="text-2xl font-bold text-stone-900 mb-2"
-                style={{ fontFamily: "Noto Sans, sans-serif" }}
-              >
-                Choose Your Processing Mode
+              <div className="w-16 h-16 mx-auto bg-stone-100 rounded-full flex items-center justify-center mb-4">
+                <Lock className="w-8 h-8 text-stone-700" />
+              </div>
+              <h2 className="text-2xl font-bold text-stone-900 mb-2">
+                Built for Privacy
               </h2>
-              <p
-                className="text-stone-600"
-                style={{ fontFamily: "Noto Sans, sans-serif" }}
-              >
-                How would you like to convert your speech to text?
+              <p className="text-stone-600">
+                Your voice is streamed directly to OpenAI's secure APIs. Nothing is stored on our servers.
               </p>
             </div>
-
-            <ProcessingModeSelector
-              useLocalWhisper={useLocalWhisper}
-              setUseLocalWhisper={updateProcessingMode}
-            />
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="p-4 rounded-xl border border-stone-200 bg-white shadow-sm">
+                <div className="flex items-start gap-3">
+                  <Shield className="w-5 h-5 text-stone-700 mt-0.5" />
+                  <div className="text-left">
+                    <h3 className="font-semibold text-stone-900 mb-1">Secure by design</h3>
+                    <p className="text-sm text-stone-600">
+                      Audio is encrypted in transit and processed with your own API key. You stay in control.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="p-4 rounded-xl border border-stone-200 bg-white shadow-sm">
+                <div className="flex items-start gap-3">
+                  <Sparkles className="w-5 h-5 text-stone-700 mt-0.5" />
+                  <div className="text-left">
+                    <h3 className="font-semibold text-stone-900 mb-1">One simple setup</h3>
+                    <p className="text-sm text-stone-600">
+                      Connect your OpenAI account once and PPQ Voice handles the rest automatically.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         );
 
@@ -467,134 +453,13 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
           <div className="space-y-6">
             <div className="text-center">
               <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                {useLocalWhisper
-                  ? "Local Processing Setup"
-                  : "Cloud Processing Setup"}
+                Connect Your Account
               </h2>
               <p className="text-gray-600">
-                {useLocalWhisper
-                  ? "Let's install and configure Whisper on your device"
-                  : "Enter your OpenAI API key to get started"}
+                Enter your OpenAI API key to get started
               </p>
             </div>
 
-            {useLocalWhisper ? (
-              <div className="space-y-4">
-                {/* Python Installation Section */}
-                {!pythonHook.pythonInstalled ? (
-                  <div className="text-center space-y-4">
-                    <div className="w-16 h-16 mx-auto bg-blue-100 rounded-full flex items-center justify-center">
-                      <Download className="w-8 h-8 text-blue-600" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900 mb-2">
-                        Install Python
-                      </h3>
-                      <p className="text-sm text-gray-600 mb-4">
-                        Python is required for local processing. We'll install it automatically for you.
-                      </p>
-                    </div>
-
-                    {pythonHook.installingPython ? (
-                      <div className="bg-blue-50 p-4 rounded-lg">
-                        <div className="flex items-center justify-center gap-3 mb-3">
-                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-                          <span className="font-medium text-blue-900">
-                            Installing Python...
-                          </span>
-                        </div>
-                        {pythonHook.installProgress && (
-                          <div className="text-xs text-blue-600 bg-white p-2 rounded font-mono">
-                            {pythonHook.installProgress}
-                          </div>
-                        )}
-                        <p className="text-xs text-blue-600 mt-2">
-                          This may take a few minutes. Please keep the app open.
-                        </p>
-                      </div>
-                    ) : (
-                      <Button
-                        onClick={() => {
-                          pythonHook.installPython();
-                        }}
-                        className="w-full bg-blue-600 hover:bg-blue-700"
-                      >
-                        Install Python
-                      </Button>
-                    )}
-                  </div>
-                ) : !whisperHook.whisperInstalled ? (
-                  <div className="text-center space-y-4">
-                    <div className="w-16 h-16 mx-auto bg-purple-100 rounded-full flex items-center justify-center">
-                      <Download className="w-8 h-8 text-purple-600" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900 mb-2">
-                        Install Whisper
-                      </h3>
-                      <p className="text-sm text-gray-600 mb-4">
-                        Python is ready! Now we'll install Whisper for speech recognition.
-                      </p>
-                    </div>
-
-                    {whisperHook.installingWhisper ? (
-                      <div className="bg-purple-50 p-4 rounded-lg">
-                        <div className="flex items-center justify-center gap-3 mb-3">
-                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-600"></div>
-                          <span className="font-medium text-purple-900">
-                            Installing...
-                          </span>
-                        </div>
-                        {whisperHook.installProgress && (
-                          <div className="text-xs text-purple-600 bg-white p-2 rounded font-mono">
-                            {whisperHook.installProgress}
-                          </div>
-                        )}
-                        <p className="text-xs text-purple-600 mt-2">
-                          This may take a few minutes. Please keep the app open.
-                        </p>
-                      </div>
-                    ) : (
-                      <Button
-                        onClick={whisperHook.installWhisper}
-                        className="w-full"
-                      >
-                        Install Whisper
-                      </Button>
-                    )}
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="text-center">
-                      <div className="w-16 h-16 mx-auto bg-green-100 rounded-full flex items-center justify-center mb-4">
-                        <Check className="w-8 h-8 text-green-600" />
-                      </div>
-                      <h3 className="font-semibold text-green-900 mb-2">
-                        Whisper Installed!
-                      </h3>
-                      <p className="text-sm text-gray-600">
-                        Now choose your model quality:
-                      </p>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-3">
-                        Choose your model quality below
-                      </label>
-                      <p className="text-xs text-gray-500">
-                        Download and select the model that best fits your needs.
-                      </p>
-                    </div>
-
-                    <WhisperModelPicker
-                      selectedModel={whisperModel}
-                      onModelSelect={setWhisperModel}
-                      variant="onboarding"
-                    />
-                  </div>
-                )}
-              </div>
-            ) : (
               <div className="space-y-4">
                 <div className="text-center">
                   <div className="w-16 h-16 mx-auto bg-blue-100 rounded-full flex items-center justify-center mb-4">
@@ -686,9 +551,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
                   </ol>
                 </div>
               </div>
-            )}
-
-            {/* Language Selection - shown for both modes */}
+            {/* Language Selection */}
             <div className="space-y-4 p-4 bg-gray-50 border border-gray-200 rounded-xl">
               <h4 className="font-medium text-gray-900 mb-3">
                 🌍 Preferred Language
@@ -704,9 +567,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
                 className="w-full"
               />
               <p className="text-xs text-gray-600 mt-1">
-                {useLocalWhisper
-                  ? "Helps Whisper better understand your speech"
-                  : "Improves OpenAI transcription speed and accuracy. AI text enhancement is enabled by default."}
+                Improves transcription accuracy and reduces turnaround time.
               </p>
             </div>
           </div>
@@ -720,7 +581,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
                 Grant Permissions
               </h2>
               <p className="text-gray-600">
-                OpenWhispr needs a couple of permissions to work properly
+                PPQ Voice needs a couple of permissions to work properly
               </p>
             </div>
 
@@ -749,10 +610,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
                 🔒 Privacy Note
               </h4>
               <p className="text-sm text-amber-800">
-                OpenWhispr only uses these permissions for dictation.
-                {useLocalWhisper
-                  ? " With local processing, your voice never leaves your device."
-                  : " Your voice is sent to OpenAI's servers for transcription."}
+                PPQ Voice only uses these permissions for dictation. Audio is sent securely to OpenAI for transcription and never stored locally.
               </p>
             </div>
           </div>
@@ -815,7 +673,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
                 className="text-stone-600"
                 style={{ fontFamily: "Noto Sans, sans-serif" }}
               >
-                Let's test your setup and practice using OpenWhispr
+                Let's test your setup and practice using PPQ Voice
               </p>
             </div>
 
@@ -883,7 +741,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
                   className="font-medium text-green-900 mb-2"
                   style={{ fontFamily: "Noto Sans, sans-serif" }}
                 >
-                  💡 How to use OpenWhispr:
+                  💡 How to use PPQ Voice:
                 </h4>
                 <ol
                   className="text-sm text-green-800 space-y-1"
@@ -972,7 +830,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
                 You're All Set!
               </h2>
               <p className="text-gray-600">
-                OpenWhispr is now configured and ready to use.
+                PPQ Voice is now configured and ready to use.
               </p>
             </div>
 
@@ -983,19 +841,13 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span>Processing:</span>
-                  <span className="font-medium">
-                    {useLocalWhisper
-                      ? `Local (${whisperModel})`
-                      : "OpenAI Cloud"}
-                  </span>
+                  <span className="font-medium">OpenAI Cloud</span>
                 </div>
-                {!useLocalWhisper && (
-                  <div className="flex justify-between">
-                    <span>Reasoning Model:</span>
-                    <span className="font-medium">{activeReasoningModelLabel}</span>
-                  </div>
-                )}
-                {!useLocalWhisper && hasEnteredReasoningBase && (
+                <div className="flex justify-between">
+                  <span>Reasoning Model:</span>
+                  <span className="font-medium">{activeReasoningModelLabel}</span>
+                </div>
+                {hasEnteredReasoningBase && (
                   <div className="flex justify-between">
                     <span>Custom Endpoint:</span>
                     <span className="font-medium break-all">
@@ -1050,11 +902,9 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
       case 0:
         return true;
       case 1:
-        return true; // Mode selection
+        return true; // Privacy info
       case 2:
-        if (useLocalWhisper) {
-          return pythonHook.pythonInstalled && whisperHook.whisperInstalled;
-        } else {
+        {
           const trimmedKey = apiKey.trim();
           if (!trimmedKey) {
             return false;

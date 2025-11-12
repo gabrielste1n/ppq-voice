@@ -34,17 +34,6 @@ export const useAudioRecording = (toast) => {
           // Save to database in parallel
           audioManagerRef.current.saveTranscription(result.text);
 
-          // Show success notification if local fallback was used
-          if (
-            result.source === "openai" &&
-            localStorage.getItem("useLocalWhisper") === "true"
-          ) {
-            toast({
-              title: "Fallback Mode",
-              description: "Local Whisper failed. Used OpenAI API instead.",
-              variant: "default",
-            });
-          }
         }
       },
     });
@@ -68,18 +57,6 @@ export const useAudioRecording = (toast) => {
     };
 
     window.electronAPI.onToggleDictation(handleToggle);
-
-    // Set up no-audio-detected listener
-    const handleNoAudioDetected = () => {
-      toast({
-        title: "No Audio Detected",
-        description:
-          "The recording contained no detectable audio. Please try again.",
-        variant: "default",
-      });
-    };
-
-    window.electronAPI.onNoAudioDetected?.(handleNoAudioDetected);
 
     // Cleanup
     return () => {

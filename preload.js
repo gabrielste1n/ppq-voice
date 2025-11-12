@@ -28,34 +28,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
   readClipboard: () => ipcRenderer.invoke("read-clipboard"),
   writeClipboard: (text) => ipcRenderer.invoke("write-clipboard", text),
 
-  // Python installation functions
-  checkPythonInstallation: () =>
-    ipcRenderer.invoke("check-python-installation"),
-  installPython: () => ipcRenderer.invoke("install-python"),
-  onPythonInstallProgress: (callback) =>
-    ipcRenderer.on("python-install-progress", callback),
-
-  // Local Whisper functions
-  transcribeLocalWhisper: (audioBlob, options) =>
-    ipcRenderer.invoke("transcribe-local-whisper", audioBlob, options),
-  checkWhisperInstallation: () =>
-    ipcRenderer.invoke("check-whisper-installation"),
-  installWhisper: () => ipcRenderer.invoke("install-whisper"),
-  onWhisperInstallProgress: (callback) =>
-    ipcRenderer.on("whisper-install-progress", callback),
-  downloadWhisperModel: (modelName) =>
-    ipcRenderer.invoke("download-whisper-model", modelName),
-  onWhisperDownloadProgress: (callback) =>
-    ipcRenderer.on("whisper-download-progress", callback),
-  checkModelStatus: (modelName) =>
-    ipcRenderer.invoke("check-model-status", modelName),
-  listWhisperModels: () => ipcRenderer.invoke("list-whisper-models"),
-  deleteWhisperModel: (modelName) =>
-    ipcRenderer.invoke("delete-whisper-model", modelName),
-  cancelWhisperDownload: () => ipcRenderer.invoke("cancel-whisper-download"),
-  checkFFmpegAvailability: () =>
-    ipcRenderer.invoke("check-ffmpeg-availability"),
-
   // Window control functions
   windowMinimize: () => ipcRenderer.invoke("window-minimize"),
   windowMaximize: () => ipcRenderer.invoke("window-maximize"),
@@ -89,21 +61,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.on("update-download-progress", callback),
   onUpdateError: (callback) => ipcRenderer.on("update-error", callback),
 
-  // Audio event listeners
-  onNoAudioDetected: (callback) =>
-    ipcRenderer.on("no-audio-detected", callback),
-
   // External link opener
   openExternal: (url) => ipcRenderer.invoke("open-external", url),
-  
-  // Model management functions
-  modelGetAll: () => ipcRenderer.invoke("model-get-all"),
-  modelCheck: (modelId) => ipcRenderer.invoke("model-check", modelId),
-  modelDownload: (modelId) => ipcRenderer.invoke("model-download", modelId),
-  modelDelete: (modelId) => ipcRenderer.invoke("model-delete", modelId),
-  modelDeleteAll: () => ipcRenderer.invoke("model-delete-all"),
-  modelCheckRuntime: () => ipcRenderer.invoke("model-check-runtime"),
-  onModelDownloadProgress: (callback) => ipcRenderer.on("model-download-progress", callback),
   
   // Anthropic API
   getAnthropicKey: () => ipcRenderer.invoke("get-anthropic-key"),
@@ -113,20 +72,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getGeminiKey: () => ipcRenderer.invoke("get-gemini-key"),
   saveGeminiKey: (key) => ipcRenderer.invoke("save-gemini-key", key),
   
-  // Local reasoning
-  processLocalReasoning: (text, modelId, agentName, config) => 
-    ipcRenderer.invoke("process-local-reasoning", text, modelId, agentName, config),
-  checkLocalReasoningAvailable: () => 
-    ipcRenderer.invoke("check-local-reasoning-available"),
-  
   // Anthropic reasoning
   processAnthropicReasoning: (text, modelId, agentName, config) =>
     ipcRenderer.invoke("process-anthropic-reasoning", text, modelId, agentName, config),
-  
-  // llama.cpp
-  llamaCppCheck: () => ipcRenderer.invoke("llama-cpp-check"),
-  llamaCppInstall: () => ipcRenderer.invoke("llama-cpp-install"),
-  llamaCppUninstall: () => ipcRenderer.invoke("llama-cpp-uninstall"),
   
   // Debug logging for reasoning pipeline
   logReasoning: (stage, details) => 

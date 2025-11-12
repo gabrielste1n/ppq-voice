@@ -217,9 +217,6 @@ class ReasoningService extends BaseReasoningService {
         case "anthropic":
           result = await this.processWithAnthropic(text, model, agentName, config);
           break;
-        case "local":
-          result = await this.processWithLocal(text, model, agentName, config);
-          break;
         case "gemini":
           result = await this.processWithGemini(text, model, agentName, config);
           break;
@@ -511,55 +508,6 @@ class ReasoningService extends BaseReasoningService {
     }
   }
 
-  private async processWithLocal(
-    text: string,
-    model: string,
-    agentName: string | null = null,
-    config: ReasoningConfig = {}
-  ): Promise<string> {
-    debugLogger.logReasoning("LOCAL_START", {
-      model,
-      agentName,
-      environment: typeof window !== 'undefined' ? 'browser' : 'node'
-    });
-    
-    // Instead of importing directly, we'll use IPC to communicate with main process
-    // For local models, we need to use IPC to communicate with the main process
-    if (typeof window !== 'undefined' && window.electronAPI) {
-      const startTime = Date.now();
-      
-      debugLogger.logReasoning("LOCAL_IPC_CALL", {
-        model,
-        textLength: text.length
-      });
-      
-      const result = await window.electronAPI.processLocalReasoning(text, model, agentName, config);
-      
-      const processingTime = Date.now() - startTime;
-      
-      if (result.success) {
-        debugLogger.logReasoning("LOCAL_SUCCESS", {
-          model,
-          processingTimeMs: processingTime,
-          resultLength: result.text.length
-        });
-        return result.text;
-      } else {
-        debugLogger.logReasoning("LOCAL_ERROR", {
-          model,
-          processingTimeMs: processingTime,
-          error: result.error
-        });
-        throw new Error(result.error);
-      }
-    } else {
-      debugLogger.logReasoning("LOCAL_UNAVAILABLE", {
-        reason: 'Not in Electron environment'
-      });
-      throw new Error('Local reasoning is not available in this environment');
-    }
-  }
-
   private async processWithGemini(
     text: string,
     model: string,
@@ -733,20 +681,18 @@ class ReasoningService extends BaseReasoningService {
       const openaiKey = await window.electronAPI?.getOpenAIKey?.();
       const anthropicKey = await window.electronAPI?.getAnthropicKey?.();
       const geminiKey = await window.electronAPI?.getGeminiKey?.();
-      const localAvailable = await window.electronAPI?.checkLocalReasoningAvailable?.();
       
       debugLogger.logReasoning("API_KEY_CHECK", {
         hasOpenAI: !!openaiKey,
         hasAnthropic: !!anthropicKey,
         hasGemini: !!geminiKey,
-        hasLocal: !!localAvailable,
         openAIKeyLength: openaiKey?.length || 0,
         anthropicKeyLength: anthropicKey?.length || 0,
         geminiKeyLength: geminiKey?.length || 0,
         geminiKeyPreview: geminiKey ? `${geminiKey.substring(0, 8)}...` : 'none'
       });
       
-      return !!(openaiKey || anthropicKey || geminiKey || localAvailable);
+      return !!(openaiKey || anthropicKey || geminiKey);
     } catch (error) {
       debugLogger.logReasoning("API_KEY_CHECK_ERROR", {
         error: (error as Error).message,

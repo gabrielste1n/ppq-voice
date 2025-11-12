@@ -1,22 +1,22 @@
 const fs = require("fs");
 const path = require("path");
 
-console.log("Setting up OpenWhispr...");
+console.log("Setting up PPQ Voice...");
 
-const envTemplate = `# OpenAI API Configuration
-# Get your API key from: https://platform.openai.com/api-keys
+const envTemplate = `# PPQ Voice Environment Variables
+# Required: OpenAI key for transcription
 OPENAI_API_KEY=your_openai_api_key_here
 
-# Optional: Customize the Whisper model
-# Available models: whisper-1 (default), whisper-1-large, whisper-1-large-v2
-WHISPER_MODEL=whisper-1
+# Optional: Claude + Gemini keys for text refinement
+ANTHROPIC_API_KEY=
+GEMINI_API_KEY=
 
-# Optional: Set language for better transcription accuracy
-# Leave empty for auto-detection, or use language codes like 'en', 'es', 'fr', etc.
-LANGUAGE=
+# Optional: Override API bases (HTTPS only)
+PPQVOICE_OPENAI_BASE_URL=
+PPQVOICE_TRANSCRIPTION_BASE_URL=
 
-# Optional: Debug mode (set to 'true' to enable verbose logging)
-DEBUG=false`;
+# Optional: Verbose logging toggle
+PPQVOICE_DEBUG=false`;
 
 if (!fs.existsSync(".env")) {
   fs.writeFileSync(".env", envTemplate);
@@ -33,18 +33,11 @@ Next steps:
 2. Install dependencies: npm install
 3. Run the app: npm start
 
-Features:
-- Global hotkey: Customizable (default: backtick \`) - set your own in Control Panel
-- Draggable dictation panel: Click and drag to position anywhere on screen
-- ESC to close the app
-- Automatic text pasting at cursor location
-- FFmpeg bundled (no separate installation needed)
+Features enabled immediately:
+- Global hotkey (default: backtick \`) that you can remap in the Control Panel
+- Floating dictation panel you can drag anywhere
+- Automatic paste at the cursor the moment text is ready
+- Optional AI clean-up using OpenAI, Anthropic, or Gemini
 
-Note: Make sure you have the necessary system permissions for:
-- Microphone access
-- Accessibility permissions (for text pasting)
-
-For local Whisper processing, you'll also need:
-- Python 3 (install via Homebrew: brew install python3)
-- OpenAI Whisper (install via: pip3 install openai-whisper)
+Just grant microphone + accessibility permissions when prompted and you're good to go.`;
 `);

@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2025-09-20
+
+### Changed
+- **Rebrand**: Updated product name, metadata, and documentation from OpenWhispr to PPQ Voice (new bundle IDs, repo links, email, and UI copy).
+- **Cloud-Only Pipeline**: Audio now always flows to OpenAI’s Whisper API. Onboarding and settings were simplified to remove local-model branching.
+- **Environment Variables**: Introduced `PPQVOICE_*` overrides (`PPQVOICE_OPENAI_BASE_URL`, `PPQVOICE_TRANSCRIPTION_BASE_URL`, `PPQVOICE_DEBUG`).
+- **Docs**: Rewrote README, CLAUDE.md, and DEBUG.md to reflect the streamlined architecture.
+
+### Removed
+- All local-model infrastructure (Python installer, `whisper.js`, llama.cpp scaffolding, model registry, download UI, NSIS/Linux cleanup scripts).
+- References to ffmpeg-static and Whisper model caches in build scripts and cleanup utilities.
+
 ## [1.0.6] - 2025-09-11
 
 ### Added
@@ -24,7 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **macOS Window Lifecycle**: Ensured the dictation panel keeps the app visible in Dock and Command-Tab while retaining floating behaviour across spaces.
 - **Control Panel Stability**: Reworked close/minimize handling so the panel stays interactive when switching apps and reopens cleanly without spawning duplicate windows.
 - **Always-On-Top Enforcement**: Centralised the logic that reapplies floating window levels, eliminating redundant timers and focus quirks.
-- **Menu Labelling**: macOS application menu items now display the correct OpenWhispr casing instead of "open-whispr".
+- **Menu Labelling**: macOS application menu items now display the correct PPQ Voice casing instead of "ppq-voice".
 - **Non-mac Hotkey Guard**: Prevented the mac-only Globe shortcut from being saved on Windows/Linux.
 
 ## [1.0.5] - 2025-09-10
@@ -212,7 +224,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0] - 2024-XX-XX
 
 ### Added
-- Initial release of OpenWhispr (formerly OpenWispr)
+- Initial release of PPQ Voice (formerly OpenWispr)
 - Desktop dictation application using OpenAI Whisper
 - Local and cloud-based speech-to-text transcription
 - Real-time audio recording and processing

@@ -35,17 +35,6 @@ class AppUtils {
         });
     }
 
-    // Local Whisper model deletion
-    try {
-      const modelCacheDir = path.join(os.homedir(), ".cache", "whisper");
-      if (fs.existsSync(modelCacheDir)) {
-        fs.rmSync(modelCacheDir, { recursive: true, force: true });
-        console.log("✅ Local Whisper models deleted:", modelCacheDir);
-      }
-    } catch (error) {
-      console.error("❌ Error deleting Whisper models:", error);
-    }
-
     // Permissions instruction
     console.log(
       "ℹ️ Please manually remove accessibility and microphone permissions via System Preferences if needed."

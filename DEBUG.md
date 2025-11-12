@@ -1,170 +1,74 @@
-# OpenWhispr Debug Mode
+# PPQ Voice Debugging Guide
 
-## Enabling Debug Logging
+Use debug logging when you need deeper insight into the microphone, transcription, or reasoning pipeline.
 
-When experiencing issues like "no audio detected", you can enable verbose debug logging to help diagnose the problem.
+## Enabling Debug Mode
 
-### Method 1: Command Line Flag
-Run the app with the `--debug` flag:
+### Option 1 – CLI flag
 ```bash
 # macOS
-/Applications/OpenWhispr.app/Contents/MacOS/OpenWhispr --debug
+/Applications/PPQ\ Voice.app/Contents/MacOS/PPQ\ Voice --debug
 
 # Windows
-OpenWhispr.exe --debug
+"C:\Program Files\PPQ Voice\PPQ Voice.exe" --debug
 ```
 
-### Method 2: Environment Variable
-Set the `OPENWHISPR_DEBUG` environment variable:
+### Option 2 – Environment variable
 ```bash
-# macOS/Linux
-export OPENWhISPR_DEBUG=true
-open /Applications/OpenWhispr.app
+# macOS / Linux
+export PPQVOICE_DEBUG=true
+open /Applications/PPQ\ Voice.app
 
-# Windows
-set OPENWhISPR_DEBUG=true
-OpenWhispr.exe
+# Windows (PowerShell)
+$env:PPQVOICE_DEBUG="true"
+Start-Process "C:\Program Files\PPQ Voice\PPQ Voice.exe"
 ```
 
-## Finding the Debug Logs
+Debug mode is off by default. Remove the flag/variable to disable it.
 
-When debug mode is enabled, logs are saved to:
+## Where Logs Live
 
-- **macOS**: `~/Library/Application Support/open-whispr/logs/debug-[timestamp].log`
-- **Windows**: `%APPDATA%/open-whispr/logs/debug-[timestamp].log`
-- **Linux**: `~/.config/open-whispr/logs/debug-[timestamp].log`
+- **macOS** – `~/Library/Application Support/ppq-voice/logs/debug-<timestamp>.log`
+- **Windows** – `%APPDATA%\ppq-voice\logs\debug-<timestamp>.log`
+- **Linux** – `~/.config/ppq-voice/logs/debug-<timestamp>.log`
 
-## What the Logs Include
+Each launch in debug mode creates a new timestamped file.
 
-The debug logs capture comprehensive information about the audio pipeline:
+## What Gets Logged
 
-1. **🎬 FFmpeg Detection**
-   - All paths checked for FFmpeg (bundled and system)
-   - File existence, permissions, and executable status
-   - ASAR unpacking verification
-   - Environment variable configuration
-   - Final FFmpeg path resolution
+| Stage | Details captured |
+| --- | --- |
+| Hotkey & permissions | Registration status, mic/accessibility prompts, failure reasons. |
+| Audio capture | Device metadata, recording duration, blob size, optimization results. |
+| OpenAI transcription | Endpoint used, payload size, HTTP status, error body if non-200. |
+| ReasoningService | Provider routing, API choices (`/responses` vs `/chat`), retries, timing. |
+| Clipboard / database | Paste attempts, SQLite insert status, error stacks if operations fail. |
 
-2. **🎙️ Audio Recording**
-   - Microphone permission requests and grants
-   - Audio track details (enabled, muted, label, settings)
-   - Real-time audio chunk reception (size and count)
-   - Audio level analysis (average, max, silence detection)
-   - Recording duration and blob creation
+All entries are timestamped and marked with emojis (`🎤`, `🤖`, `📡`, etc.) to make scanning easier.
 
-3. **🔊 Audio Processing**
-   - Audio data types and conversion
-   - Temporary file creation and permissions
-   - File sizes at each stage
-   - First bytes of audio data (hex)
-   - Whisper command construction
-   - Python process environment setup
+## Reading the Logs
 
-4. **📡 Process Communication**
-   - IPC messages between renderer and main process
-   - Audio blob transfer details
-   - Whisper process stdout/stderr
-   - Process exit codes
-   - Error propagation
+Common entries:
 
-5. **🎯 Pipeline Stages**
-   - Each stage is clearly marked with descriptive labels
-   - Timing information for performance analysis
-   - Success/failure status at each step
+- `🎤 AUDIO_RECORDER_START` / `STOP` – recording lifecycle. Zero-length blobs usually mean the microphone is muted or in use elsewhere.
+- `📡 TRANSCRIPTION_REQUEST` – shows which base URL was used and the payload size. If you set `PPQVOICE_TRANSCRIPTION_BASE_URL`, confirm it appears here.
+- `❌ TRANSCRIPTION_ERROR` – includes HTTP status and truncated response text. Check for expired API keys or unsupported models.
+- `🤖 REASONING_*` – selection + response for OpenAI / Anthropic / Gemini clean-up. Failures include provider-specific error messages.
+- `📋 PASTE_ERROR` – indicates accessibility permission problems.
 
-## Common Issues and What to Look For
+## Troubleshooting Cheatsheet
 
-### "No Audio Detected"
-Look for these specific log entries:
-- `Audio appears to be silent` - Check `maxLevel` value (should be > 0.01)
-- `Audio chunk received, size: 0` - MediaRecorder not capturing data
-- `FFmpeg not available` - FFmpeg path resolution failed
-- `Bundled FFmpeg not found` - ASAR unpacking issue
-- `FFmpeg exists but is not executable` - Permission problem
-- `No audio chunks received after 3 seconds` - Microphone not working
-- `Whisper reported no audio detected` - FFmpeg processing failed
+| Message | Action |
+| --- | --- |
+| `Microphone Access Denied` | Re-run onboarding or go to System Settings → Privacy & Security → Microphone. |
+| `401 Unauthorized` in transcription | The OpenAI key is missing/invalid. Update `.env` and restart. |
+| `Only HTTPS endpoints are allowed` | Custom base URLs must be HTTPS or localhost. |
+| `Reasoning provider unavailable` | Ensure the relevant API key is set in Settings → AI Models. |
+| `Paste failed` | Re-grant Accessibility permission and restart the app. |
 
-### Transcription Fails
-Look for:
-- `Whisper stderr:` - Check for Python errors or FFmpeg issues
-- `Failed to parse Whisper output` - Invalid JSON response
-- `Process closed with code: [non-zero]` - Process failure
-- `Audio file is empty after writing` - File I/O issue
-- `Unsupported audio data type` - Audio format problem
+## Sharing Logs
 
-### Slow Performance
-Look for:
-- Large `blobSize` values (> 10MB) - Consider audio optimization
-- Multiple `Checking alternative path` entries - FFmpeg search overhead
-- `Whisper process closed` with long delays - Model processing time
-
-### Permission Issues
-Look for:
-- `Microphone Access Denied` - System permission required
-- `dirReadable: false` - Directory access problems
-- `permissions: [number]` - Check file permission octals
-
-## Interpreting Key Debug Messages
-
-### FFmpeg Path Resolution
-```
-🎬 FFmpeg Debug - Initial ffmpeg-static path {
-  "ffmpegPath": "/path/to/ffmpeg",
-  "exists": true,
-  "fileInfo": {
-    "size": 74750976,
-    "isFile": true,
-    "isExecutable": true,
-    "permissions": "100755"
-  }
-}
-```
-- `exists: false` - Path resolution failed
-- `isExecutable: false` - Permission issue
-- `permissions` - Should be executable (755 or similar)
-
-### Audio Level Analysis
-```
-🔊 Audio level analysis {
-  "duration": "3.45s",
-  "samples": 165888,
-  "averageLevel": "0.002134",
-  "maxLevel": "0.045632",
-  "isSilent": false
-}
-```
-- `maxLevel < 0.01` - Audio too quiet/silent
-- `samples: 0` - No audio data captured
-- `isSilent: true` - Definite silence detected
-
-### Whisper Process Environment
-```
-🚀 Starting process {
-  "command": "python3",
-  "args": ["whisper_bridge.py", "/tmp/whisper_audio.wav", "--model", "base"],
-  "env": {
-    "FFMPEG_PATH": "/path/to/ffmpeg",
-    "FFMPEG_EXECUTABLE": "/path/to/ffmpeg",
-    "FFMPEG_BINARY": "/path/to/ffmpeg"
-  }
-}
-```
-- All three FFmpeg env vars should point to valid path
-- Empty env vars indicate FFmpeg not found
-
-## Sharing Debug Logs
-
-When reporting issues:
-
-1. Enable debug mode and reproduce the issue
-2. Find the debug log file (path is shown at startup)
-3. Look for any sensitive information and redact if needed
-4. Share the relevant portions of the log file
-5. Include the error message shown to the user
-6. Note your system configuration (macOS version, mic type)
-
-## Disabling Debug Mode
-
-Debug mode is disabled by default. To ensure it's off:
-- Don't use the `--debug` flag
-- Unset the environment variable: `unset OPENWHISPR_DEBUG`
+1. Enable debug mode and reproduce the issue.
+2. Open the most recent file from the log directory above.
+3. Redact API keys if they appear (the app tries to avoid logging them).
+4. Attach the relevant excerpt when filing an issue or emailing support.

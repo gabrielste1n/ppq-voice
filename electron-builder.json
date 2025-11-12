@@ -1,6 +1,6 @@
 {
-  "appId": "com.herotools.openwispr",
-  "productName": "OpenWhispr",
+  "appId": "com.herotools.ppqvoice",
+  "productName": "PPQ Voice",
   "directories": {
     "output": "dist"
   },
@@ -9,7 +9,6 @@
   "files": [
     "main.js",
     "preload.js",
-    "whisper_bridge.py",
     "package.json",
     "node_modules/**/*",
     "src/dist/**/*",
@@ -24,8 +23,6 @@
     "!src/node_modules/**/*"
   ],
   "asarUnpack": [
-    "whisper_bridge.py",
-    "**/node_modules/ffmpeg-static/**/*",
     "**/node_modules/better-sqlite3/**/*"
   ],
   "extraResources": [
@@ -53,8 +50,8 @@
     "identity": "HeroTools Inc. (9R85XFMH59)",
     "extendInfo": {
       "LSUIElement": false,
-      "NSMicrophoneUsageDescription": "OpenWhispr needs microphone access for speech-to-text transcription.",
-      "NSAccessibilityUsageDescription": "OpenWhispr needs accessibility permissions to paste transcribed text into other applications."
+      "NSMicrophoneUsageDescription": "PPQ Voice needs microphone access for speech-to-text transcription.",
+      "NSAccessibilityUsageDescription": "PPQ Voice needs accessibility permissions to paste transcribed text into other applications."
     }
   },
   "win": {
@@ -72,18 +69,14 @@
     "icon": "src/assets/icon.png",
     "category": "Utility"
   },
-  "deb": {
-    "afterRemove": "resources/linux/after-remove.sh"
-  },
   "nsis": {
     "oneClick": false,
     "allowToChangeInstallationDirectory": true,
     "createDesktopShortcut": true,
-    "createStartMenuShortcut": true,
-    "include": "resources/nsis/cleanup-models.nsh"
+    "createStartMenuShortcut": true
   },
   "dmg": {
-    "title": "OpenWhispr",
+    "title": "PPQ Voice",
     "icon": "src/assets/icon.icns",
     "background": "src/assets/dmg-background.png",
     "window": {
@@ -94,7 +87,7 @@
   "publish": {
     "provider": "github",
     "owner": "HeroTools",
-    "repo": "open-whispr",
+    "repo": "ppq-voice",
     "private": false,
     "releaseType": "draft"
   }

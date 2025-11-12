@@ -1,8 +1,8 @@
 const { app, globalShortcut, BrowserWindow, dialog } = require("electron");
 
 // Ensure macOS menus use the proper casing for the app name
-if (process.platform === "darwin" && app.getName() !== "OpenWhispr") {
-  app.setName("OpenWhispr");
+if (process.platform === "darwin" && app.getName() !== "PPQ Voice") {
+  app.setName("PPQ Voice");
 }
 
 // Add global error handling for uncaught exceptions
@@ -21,43 +21,14 @@ process.on("unhandledRejection", (reason, promise) => {
 });
 
 // Import helper modules
-const DebugLogger = require("./src/helpers/debugLogger");
 const EnvironmentManager = require("./src/helpers/environment");
 const WindowManager = require("./src/helpers/windowManager");
 const DatabaseManager = require("./src/helpers/database");
 const ClipboardManager = require("./src/helpers/clipboard");
-const WhisperManager = require("./src/helpers/whisper");
 const TrayManager = require("./src/helpers/tray");
 const IPCHandlers = require("./src/helpers/ipcHandlers");
 const UpdateManager = require("./src/updater");
 const GlobeKeyManager = require("./src/helpers/globeKeyManager");
-
-// Set up PATH for production builds to find system Python
-function setupProductionPath() {
-  if (process.platform === 'darwin' && process.env.NODE_ENV !== 'development') {
-    const commonPaths = [
-      '/usr/local/bin',
-      '/opt/homebrew/bin',
-      '/usr/bin',
-      '/bin',
-      '/usr/sbin',
-      '/sbin',
-      '/Library/Frameworks/Python.framework/Versions/3.11/bin',
-      '/Library/Frameworks/Python.framework/Versions/3.10/bin',
-      '/Library/Frameworks/Python.framework/Versions/3.9/bin'
-    ];
-    
-    const currentPath = process.env.PATH || '';
-    const pathsToAdd = commonPaths.filter(p => !currentPath.includes(p));
-    
-    if (pathsToAdd.length > 0) {
-      process.env.PATH = `${currentPath}:${pathsToAdd.join(':')}`;
-    }
-  }
-}
-
-// Set up PATH before initializing managers
-setupProductionPath();
 
 // Initialize managers
 const environmentManager = new EnvironmentManager();
@@ -65,7 +36,6 @@ const windowManager = new WindowManager();
 const hotkeyManager = windowManager.hotkeyManager;
 const databaseManager = new DatabaseManager();
 const clipboardManager = new ClipboardManager();
-const whisperManager = new WhisperManager();
 const trayManager = new TrayManager();
 const updateManager = new UpdateManager();
 const globeKeyManager = new GlobeKeyManager();
@@ -86,13 +56,13 @@ if (process.platform === "darwin") {
     if (process.env.NODE_ENV === "development") {
       detailLines.push("Run `npm run compile:globe` and rebuild the app to regenerate the listener binary.");
     } else {
-      detailLines.push("Try reinstalling OpenWhispr or contact support if the issue persists.");
+      detailLines.push("Try reinstalling PPQ Voice or contact support if the issue persists.");
     }
 
     dialog.showMessageBox({
       type: "warning",
       title: "Globe Hotkey Unavailable",
-      message: "OpenWhispr could not activate the Globe key hotkey.",
+      message: "PPQ Voice could not activate the Globe key hotkey.",
       detail: detailLines.join("\n\n"),
     });
   });
@@ -103,7 +73,6 @@ const ipcHandlers = new IPCHandlers({
   environmentManager,
   databaseManager,
   clipboardManager,
-  whisperManager,
   windowManager,
 });
 
@@ -120,11 +89,6 @@ async function startApp() {
     // Prevent dock from hiding when windows use setVisibleOnAllWorkspaces
     app.setActivationPolicy('regular');
   }
-
-  // Initialize Whisper manager at startup (don't await to avoid blocking)
-  whisperManager.initializeAtStartup().catch((err) => {
-    // Whisper not being available at startup is not critical
-  });
 
   // Create main window
   try {

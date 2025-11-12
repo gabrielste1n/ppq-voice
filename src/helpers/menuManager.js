@@ -5,7 +5,7 @@ class MenuManager {
     if (process.platform === "darwin") {
       const template = [
         {
-          label: "OpenWhispr",
+          label: "PPQ Voice",
           submenu: [
             { role: "about" },
             { type: "separator" },
@@ -15,7 +15,7 @@ class MenuManager {
             { role: "hideOthers" },
             { role: "unhide" },
             { type: "separator" },
-            { role: "quit", label: "Quit OpenWhispr" },
+            { role: "quit", label: "Quit PPQ Voice" },
           ],
         },
       ];
@@ -29,7 +29,7 @@ class MenuManager {
       // On macOS, create a proper application menu
       const template = [
         {
-          label: "OpenWhispr",
+          label: "PPQ Voice",
           submenu: [
             { role: "about" },
             { type: "separator" },
@@ -39,7 +39,7 @@ class MenuManager {
             { role: "hideOthers" },
             { role: "unhide" },
             { type: "separator" },
-            { role: "quit", label: "Quit OpenWhispr" },
+            { role: "quit", label: "Quit PPQ Voice" },
           ],
         },
         {
@@ -96,7 +96,7 @@ class MenuManager {
               label: "Learn More",
               click: async () => {
                 const { shell } = require("electron");
-                await shell.openExternal("https://github.com/HeroTools/open-whispr");
+                await shell.openExternal("https://github.com/HeroTools/ppq-voice");
               },
             },
           ],

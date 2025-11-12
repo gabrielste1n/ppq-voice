@@ -38,7 +38,7 @@ const CONTROL_PANEL_CONFIG = {
     webSecurity: false,
     spellcheck: false,
   },
-  title: "OpenWhispr Control Panel",
+  title: "PPQ Voice Control Panel",
   resizable: true,
   show: false,
   titleBarStyle: "hiddenInset",

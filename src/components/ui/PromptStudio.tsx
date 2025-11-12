@@ -137,31 +137,13 @@ export default function PromptStudio({ className = "" }: PromptStudioProps) {
       }));
       
       try {
-        // For local models, use a different approach
-        if (reasoningProvider === "local") {
-          // Call local reasoning directly
-          const result = await window.electronAPI.processLocalReasoning(testText, reasoningModel, agentName, {
-            customPrompts: {
-              agent: editedAgentPrompt,
-              regular: editedRegularPrompt
-            }
-          });
-          
-          if (result.success) {
-            setTestResult(result.text);
-          } else {
-            setTestResult(`❌ Local model error: ${result.error}`);
+        const result = await ReasoningService.processText(testText, reasoningModel, agentName, {
+          customPrompts: {
+            agent: editedAgentPrompt,
+            regular: editedRegularPrompt
           }
-        } else {
-          // Call the AI - ReasoningService will automatically use the custom prompts
-          const result = await ReasoningService.processText(testText, reasoningModel, agentName, {
-            customPrompts: {
-              agent: editedAgentPrompt,
-              regular: editedRegularPrompt
-            }
-          });
-          setTestResult(result);
-        }
+        });
+        setTestResult(result);
       } finally {
         // Restore original prompts
         if (currentCustomPrompts) {
@@ -195,7 +177,7 @@ export default function PromptStudio({ className = "" }: PromptStudioProps) {
           Current AI Prompts
         </h3>
         <p className="text-sm text-gray-600 mb-6">
-          These are the exact prompts currently being sent to your AI models. Understanding these helps you see how OpenWhispr thinks!
+          These are the exact prompts currently being sent to your AI models. Understanding these helps you see how PPQ Voice thinks!
         </p>
       </div>
 

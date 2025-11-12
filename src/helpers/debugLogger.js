@@ -6,7 +6,7 @@ class DebugLogger {
   constructor() {
     // Only enable debug mode when explicitly requested
     this.debugMode =
-      process.env.OPENWISPR_DEBUG === "true" ||
+      process.env.PPQVOICE_DEBUG === "true" ||
       process.argv.includes("--debug") ||
       this.checkDebugFile();
     this.logFile = null;
