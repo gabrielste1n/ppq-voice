@@ -179,6 +179,7 @@ export const REASONING_PROVIDERS = {
         description: "1M token context",
       },
     ],
+  },
 };
 
 export const getAllReasoningModels = () => {

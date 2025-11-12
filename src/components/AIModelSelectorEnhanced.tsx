@@ -663,9 +663,8 @@ export default function AIModelSelectorEnhanced({
                 </div>
               </div>
             </div>
-          </div>
-        </>
-      )}
+          </>
+        )}
     </div>
   );
 }
