@@ -1,4 +1,3 @@
-import TextCleanup from "../utils/textCleanup";
 import ReasoningService from "../services/ReasoningService";
 import { API_ENDPOINTS } from "../config/constants";
 
@@ -124,22 +123,23 @@ class AudioManager {
     }
   }
 
-  static cleanTranscription(text, options = {}) {
-    return TextCleanup.cleanTranscription(text, {
-      removeArtifacts: true,
-      normalizeSpaces: true,
-      fixPunctuation: true,
-      removeFillers: true,
-      removeRepetitions: true,
-      capitalizeFirst: true,
-      addPeriod: false,
-      ...options,
-    });
+  static normalizeTranscription(text = "") {
+    if (!text || typeof text !== "string") {
+      return "";
+    }
+    return text.replace(/\s+/g, " ").trim();
+  }
+
+  static cleanTranscription(text) {
+    const normalized = this.normalizeTranscription(text);
+    if (!normalized) {
+      return "";
+    }
+    return normalized.charAt(0).toUpperCase() + normalized.slice(1);
   }
 
   static cleanTranscriptionForAPI(text) {
-    // Minimal cleanup - only normalize spaces for API processing
-    return TextCleanup.normalizeSpaces(text);
+    return this.normalizeTranscription(text);
   }
 
   async getAPIKey() {

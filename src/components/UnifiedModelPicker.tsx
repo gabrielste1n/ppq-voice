@@ -20,8 +20,25 @@ export function UnifiedModelPickerCompact({
   models,
   className = "",
 }: UnifiedModelPickerCompactProps) {
+  const handleOpenAIModels = () => {
+    if (typeof window !== "undefined") {
+      window.electronAPI?.openExternal?.(
+        "https://platform.openai.com/docs/models"
+      );
+    }
+  };
+
   return (
     <div className={`space-y-2 ${className}`}>
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={handleOpenAIModels}
+          className="text-xs text-blue-600 underline hover:text-blue-700"
+        >
+          Explore models on OpenAI ↗
+        </button>
+      </div>
       {models.map((model) => (
         <button
           key={model.value}

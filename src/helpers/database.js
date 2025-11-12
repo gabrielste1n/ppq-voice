@@ -42,13 +42,20 @@ class DatabaseManager {
       if (!this.db) {
         throw new Error("Database not initialized");
       }
+      const content = typeof text === "string" ? text.trim() : "";
       const stmt = this.db.prepare(
         "INSERT INTO transcriptions (text) VALUES (?)"
       );
-      const result = stmt.run(text);
+      const result = stmt.run(content);
+      const inserted = this.db
+        .prepare("SELECT * FROM transcriptions WHERE id = ?")
+        .get(result.lastInsertRowid);
 
-
-      return { id: result.lastInsertRowid, success: true };
+      return {
+        id: result.lastInsertRowid,
+        success: true,
+        transcription: inserted,
+      };
     } catch (error) {
       console.error("Error saving transcription:", error.message);
       throw error;
@@ -95,7 +102,7 @@ class DatabaseManager {
       console.log(
         `🗑️ Deleted transcription ${id}, affected rows: ${result.changes}`
       );
-      return { success: result.changes > 0 };
+      return { success: result.changes > 0, id };
     } catch (error) {
       console.error("❌ Error deleting transcription:", error);
       throw error;

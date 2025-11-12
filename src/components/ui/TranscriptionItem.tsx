@@ -18,6 +18,10 @@ export default function TranscriptionItem({
   onCopy,
   onDelete,
 }: TranscriptionItemProps) {
+  const timestampDate = item.timestamp
+    ? new Date(`${item.timestamp}Z`)
+    : new Date();
+
   return (
     <div className="relative bg-gradient-to-b from-blue-50/30 to-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
       <div className="p-6 pl-16" style={{ paddingTop: "8px" }}>
@@ -32,7 +36,7 @@ export default function TranscriptionItem({
               </span>
               <div className="w-px h-3 bg-neutral-300" />
               <span className="text-xs text-neutral-500">
-                {new Date(item.timestamp).toLocaleString("en-US", {
+                {timestampDate.toLocaleString("en-US", {
                   month: "short",
                   day: "numeric",
                   hour: "2-digit",

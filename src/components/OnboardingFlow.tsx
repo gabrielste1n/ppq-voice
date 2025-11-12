@@ -60,6 +60,11 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
 
   const [apiKey, setApiKey] = useState(ppqApiKey);
   const [hotkey, setHotkey] = useState(dictationKey || "`");
+  const [skipAuth, setSkipAuth] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("skipAuth") === "true";
+  });
+  const [isRegisteringHotkey, setIsRegisteringHotkey] = useState(false);
   const readableHotkey = formatHotkeyLabel(hotkey);
   const { alertDialog, showAlertDialog, hideAlertDialog } = useDialogs();
   const practiceTextareaRef = useRef<HTMLTextAreaElement>(null);
@@ -70,6 +75,19 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
 
   const permissionsHook = usePermissions(showAlertDialog);
   const { pasteFromClipboard } = useClipboard(showAlertDialog);
+  const openOpenAIKeys = useCallback(() => {
+    window.electronAPI?.openExternal?.(
+      "https://platform.openai.com/account/api-keys"
+    );
+  }, []);
+  const toggleSkipAuth = useCallback(() => {
+    setSkipAuth((prev) => !prev);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem("skipAuth", skipAuth ? "true" : "false");
+  }, [skipAuth]);
 
   const steps = [
     { title: "Welcome", icon: Sparkles },
@@ -85,8 +103,43 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
       practiceTextareaRef.current.focus();
     }
   }, [currentStep]);
+  
+  const attemptHotkeyRegistration = useCallback(async () => {
+    if (!window.electronAPI?.updateHotkey) {
+      return true;
+    }
+    setIsRegisteringHotkey(true);
+    try {
+      const result = await window.electronAPI.updateHotkey(hotkey);
+      if (!result?.success) {
+        showAlertDialog({
+          title: "Hotkey Not Registered",
+          description:
+            result?.message ||
+            "We couldn't register that key. Please choose another hotkey.",
+        });
+        return false;
+      }
+      return true;
+    } catch (error) {
+      console.error("Failed to register onboarding hotkey", error);
+      showAlertDialog({
+        title: "Hotkey Error",
+        description:
+          "We couldn't register that key. Please choose another hotkey.",
+      });
+      return false;
+    } finally {
+      setIsRegisteringHotkey(false);
+    }
+  }, [hotkey, showAlertDialog]);
 
   const saveSettings = useCallback(async () => {
+    const hotkeyRegistered = await attemptHotkeyRegistration();
+    if (!hotkeyRegistered) {
+      return false;
+    }
+
     updateTranscriptionSettings({
       preferredLanguage,
     });
@@ -95,23 +148,6 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
       reasoningModel,
     });
     setDictationKey(hotkey);
-    try {
-      const result = await window.electronAPI?.updateHotkey?.(hotkey);
-      if (result && !result.success) {
-        showAlertDialog({
-          title: "Hotkey Not Registered",
-          description:
-            result.message ||
-            "We couldn't register that key. Please choose another hotkey.",
-        });
-      }
-    } catch (error) {
-      console.error("Failed to register onboarding hotkey", error);
-      showAlertDialog({
-        title: "Hotkey Error",
-        description: "We couldn't register that key. Please choose another hotkey.",
-      });
-    }
 
     localStorage.setItem(
       "micPermissionGranted",
@@ -124,38 +160,50 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
     localStorage.setItem("onboardingCompleted", "true");
 
     const trimmedKey = apiKey.trim();
-    if (trimmedKey) {
+    if (trimmedKey && !skipAuth) {
       await window.electronAPI.savePPQKey(trimmedKey);
       updateApiKeys({ ppqApiKey: trimmedKey });
     }
+
+    return true;
   }, [
+    attemptHotkeyRegistration,
     hotkey,
     preferredLanguage,
     permissionsHook.micPermissionGranted,
     permissionsHook.accessibilityPermissionGranted,
     apiKey,
+    skipAuth,
     updateTranscriptionSettings,
     updateReasoningSettings,
     updateApiKeys,
     setDictationKey,
     useReasoningModel,
     reasoningModel,
-    showAlertDialog,
   ]);
 
-  const nextStep = useCallback(() => {
-    if (currentStep < steps.length - 1) {
-      const newStep = currentStep + 1;
-      setCurrentStep(newStep);
+  const nextStep = useCallback(async () => {
+    if (currentStep >= steps.length - 1) {
+      return;
+    }
 
-      // Show dictation panel when moving from permissions step (2) to hotkey step (3)
-      if (currentStep === 2 && newStep === 3) {
-        if (window.electronAPI?.showDictationPanel) {
-          window.electronAPI.showDictationPanel();
-        }
+    if (currentStep === 3 || currentStep === 4) {
+      const registered = await attemptHotkeyRegistration();
+      if (!registered) {
+        return;
       }
     }
-  }, [currentStep, setCurrentStep, steps.length]);
+
+    const newStep = currentStep + 1;
+    setCurrentStep(newStep);
+
+    // Show dictation panel when moving from permissions step (2) to hotkey step (3)
+    if (currentStep === 2 && newStep === 3) {
+      if (window.electronAPI?.showDictationPanel) {
+        window.electronAPI.showDictationPanel();
+      }
+    }
+  }, [attemptHotkeyRegistration, currentStep, setCurrentStep, steps.length]);
 
   const prevStep = useCallback(() => {
     if (currentStep > 0) {
@@ -165,7 +213,10 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
   }, [currentStep, setCurrentStep]);
 
   const finishOnboarding = useCallback(async () => {
-    await saveSettings();
+    const saved = await saveSettings();
+    if (!saved) {
+      return;
+    }
     // Clear the onboarding step since we're done
     removeCurrentStep();
     onComplete();
@@ -238,11 +289,39 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
                   apiKey={apiKey}
                   setApiKey={setApiKey}
                   label="PPQ API Key"
-                  helpText="Generate one from console.groq.com/keys using your ppq.ai login."
+                  helpText={
+                    <span className="text-xs text-blue-800">
+                      Need a key?{" "}
+                      <button
+                        type="button"
+                        className="text-blue-600 underline hover:text-blue-700"
+                        onClick={openOpenAIKeys}
+                      >
+                        Open it from OpenAI
+                      </button>
+                      .
+                    </span>
+                  }
                 />
                 <p className="text-xs text-blue-800">
                   Keys stay on your device and are sent directly to Groq&apos;s APIs over HTTPS—never to PPQ servers.
                 </p>
+                <div className="flex items-center justify-between text-xs text-blue-900 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                  <span>
+                    {skipAuth
+                      ? "Skipping for now. We'll remind you in Settings."
+                      : "No key handy? You can finish setup without it."}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={toggleSkipAuth}
+                    className="text-blue-700 border-blue-300 hover:bg-blue-100"
+                  >
+                    {skipAuth ? "Require Key" : "Skip for now"}
+                  </Button>
+                </div>
               </div>
 
               <div className="space-y-4 p-6 bg-white border border-stone-200 rounded-2xl shadow-sm">
@@ -536,25 +615,33 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
   };
 
   const canProceed = () => {
+    let canAdvance = false;
     switch (currentStep) {
       case 0:
-        return true;
+        canAdvance = true;
+        break;
       case 1:
-        return apiKey.trim().length > 0;
+        canAdvance = skipAuth || apiKey.trim().length > 0;
+        break;
       case 2:
-        return (
+        canAdvance =
           permissionsHook.micPermissionGranted &&
-          permissionsHook.accessibilityPermissionGranted
-        );
+          permissionsHook.accessibilityPermissionGranted;
+        break;
       case 3:
-        return hotkey.trim() !== "";
+        canAdvance = hotkey.trim() !== "";
+        break;
       case 4:
-        return true;
+        canAdvance = true;
+        break;
       case 5:
-        return true;
+        canAdvance = true;
+        break;
       default:
-        return false;
+        canAdvance = false;
     }
+
+    return canAdvance && !isRegisteringHotkey;
   };
 
   // Load Google Font only in the browser
@@ -630,7 +717,8 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
           <div className="flex items-center gap-3">
             {currentStep === steps.length - 1 ? (
               <Button
-                onClick={finishOnboarding}
+                onClick={() => void finishOnboarding()}
+                disabled={isRegisteringHotkey}
                 className="bg-green-600 hover:bg-green-700 px-8 py-3 h-12 text-sm font-medium"
                 style={{ fontFamily: "Noto Sans, sans-serif" }}
               >
@@ -639,7 +727,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
               </Button>
             ) : (
               <Button
-                onClick={nextStep}
+                onClick={() => void nextStep()}
                 disabled={!canProceed()}
                 className="px-8 py-3 h-12 text-sm font-medium"
                 style={{ fontFamily: "Noto Sans, sans-serif" }}

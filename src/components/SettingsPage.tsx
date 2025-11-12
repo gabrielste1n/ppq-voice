@@ -66,6 +66,11 @@ export default function SettingsPage({
     releaseNotes?: string;
   }>({});
   const reasoningOptions = useMemo(() => getAllReasoningModels(), []);
+  const openOpenAIKeys = useCallback(() => {
+    window.electronAPI?.openExternal?.(
+      "https://platform.openai.com/account/api-keys"
+    );
+  }, []);
 
   const isUpdateAvailable =
     !updateStatus.isDevelopment &&
@@ -723,7 +728,19 @@ export default function SettingsPage({
               <ApiKeyInput
                 apiKey={ppqApiKey}
                 setApiKey={setPpqApiKey}
-                helpText="Find it at console.groq.com/keys (same key powers Whisper + Llama/Mixtral)."
+                helpText={
+                  <span>
+                    Need a key?{" "}
+                    <button
+                      type="button"
+                      onClick={openOpenAIKeys}
+                      className="text-blue-600 underline hover:text-blue-700"
+                    >
+                      Open the OpenAI console
+                    </button>
+                    .
+                  </span>
+                }
               />
               <Button onClick={saveApiKey} className="w-full">
                 Save API Key

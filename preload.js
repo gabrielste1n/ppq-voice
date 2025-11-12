@@ -1,5 +1,11 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
+const exposeListener = (channel, callback) => {
+  const listener = (_event, payload) => callback(payload);
+  ipcRenderer.on(channel, listener);
+  return () => ipcRenderer.removeListener(channel, listener);
+};
+
 contextBridge.exposeInMainWorld("electronAPI", {
   pasteText: (text) => ipcRenderer.invoke("paste-text", text),
   hideWindow: () => ipcRenderer.invoke("hide-window"),
@@ -72,4 +78,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
   removeAllListeners: (channel) => {
     ipcRenderer.removeAllListeners(channel);
   },
+  
+  // Transcription change listeners
+  onTranscriptionAdded: (callback) =>
+    exposeListener("transcription-added", callback),
+  onTranscriptionDeleted: (callback) =>
+    exposeListener("transcription-deleted", callback),
+  onTranscriptionsCleared: (callback) =>
+    exposeListener("transcriptions-cleared", callback),
 });

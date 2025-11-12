@@ -5,6 +5,11 @@ export interface TranscriptionItem {
   created_at: string;
 }
 
+export interface HotkeyUpdateResult {
+  success: boolean;
+  message?: string;
+}
+
 export interface UpdateCheckResult {
   updateAvailable: boolean;
   version?: string;
@@ -54,10 +59,16 @@ declare global {
       // Database operations
       saveTranscription: (
         text: string
-      ) => Promise<{ id: number; success: boolean }>;
+      ) => Promise<{
+        id: number;
+        success: boolean;
+        transcription: TranscriptionItem;
+      }>;
       getTranscriptions: (limit?: number) => Promise<TranscriptionItem[]>;
       clearTranscriptions: () => Promise<{ cleared: number; success: boolean }>;
-      deleteTranscription: (id: number) => Promise<{ success: boolean }>;
+      deleteTranscription: (
+        id: number
+      ) => Promise<{ success: boolean; id: number }>;
 
       // API key management
       getPPQKey: () => Promise<string>;
@@ -126,7 +137,16 @@ declare global {
       removeAllListeners: (channel: string) => void;
 
       // Hotkey management
-      updateHotkey: (key: string) => Promise<void>;
+      updateHotkey: (key: string) => Promise<HotkeyUpdateResult>;
+      
+      // Transcription event listeners
+      onTranscriptionAdded?: (
+        callback: (item: TranscriptionItem) => void
+      ) => () => void;
+      onTranscriptionDeleted?: (callback: (id: number) => void) => () => void;
+      onTranscriptionsCleared?: (
+        callback: (payload: { cleared: number }) => void
+      ) => () => void;
       
       // Debug logging
       logReasoning?: (stage: string, details: any) => Promise<void>;

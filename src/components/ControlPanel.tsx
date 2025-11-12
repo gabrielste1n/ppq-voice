@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
-import { Trash2, RefreshCw, Settings, FileText, Mic, X } from "lucide-react";
+import { Trash2, Settings, FileText, Mic, X } from "lucide-react";
 import SettingsModal from "./SettingsModal";
 import TitleBar from "./TitleBar";
 import SupportDropdown from "./ui/SupportDropdown";
@@ -10,11 +10,10 @@ import { ConfirmDialog, AlertDialog } from "./ui/dialog";
 import { useDialogs } from "../hooks/useDialogs";
 import { useHotkey } from "../hooks/useHotkey";
 import { useToast } from "./ui/Toast";
-import type { TranscriptionItem as TranscriptionItemType } from "../types/electron";
+import { useTranscriptionStore } from "../stores/transcriptionStore";
 
 export default function ControlPanel() {
-  const [history, setHistory] = useState<TranscriptionItemType[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { items: history, isLoading } = useTranscriptionStore();
   const [showSettings, setShowSettings] = useState(false);
   const { hotkey } = useHotkey();
   const { toast } = useToast();
@@ -39,9 +38,6 @@ export default function ControlPanel() {
   };
 
   useEffect(() => {
-    // Load transcription history from database
-    loadTranscriptions();
-
     // Initialize update status
     const initializeUpdateStatus = async () => {
       try {
@@ -79,17 +75,6 @@ export default function ControlPanel() {
     };
   }, []);
 
-  const loadTranscriptions = async () => {
-    try {
-      setIsLoading(true);
-      const transcriptions = await window.electronAPI.getTranscriptions(50);
-      setHistory(transcriptions);
-    } catch (error) {
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -116,7 +101,6 @@ export default function ControlPanel() {
       onConfirm: async () => {
         try {
           const result = await window.electronAPI.clearTranscriptions();
-          setHistory([]);
           showAlertDialog({
             title: "History Cleared",
             description: `Successfully cleared ${result.cleared} transcriptions from your chronicles.`,
@@ -140,10 +124,7 @@ export default function ControlPanel() {
       onConfirm: async () => {
         try {
           const result = await window.electronAPI.deleteTranscription(id);
-          if (result.success) {
-            // Remove from local state
-            setHistory((prev) => prev.filter((item) => item.id !== id));
-          } else {
+          if (!result.success) {
             showAlertDialog({
               title: "Delete Failed",
               description:
@@ -159,10 +140,6 @@ export default function ControlPanel() {
       },
       variant: "destructive",
     });
-  };
-
-  const refreshHistory = async () => {
-    await loadTranscriptions();
   };
 
   return (
@@ -233,9 +210,6 @@ export default function ControlPanel() {
                   Recent Transcriptions
                 </CardTitle>
                 <div className="flex gap-2">
-                  <Button onClick={refreshHistory} variant="ghost" size="icon">
-                    <RefreshCw size={16} />
-                  </Button>
                   {history.length > 0 && (
                     <Button
                       onClick={clearHistory}
