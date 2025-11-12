@@ -40,7 +40,7 @@ Each launch in debug mode creates a new timestamped file.
 | --- | --- |
 | Hotkey & permissions | Registration status, mic/accessibility prompts, failure reasons. |
 | Audio capture | Device metadata, recording duration, blob size, optimization results. |
-| OpenAI transcription | Endpoint used, payload size, HTTP status, error body if non-200. |
+| Groq transcription | Endpoint used, payload size, HTTP status, error body if non-200. |
 | ReasoningService | Provider routing, API choices (`/responses` vs `/chat`), retries, timing. |
 | Clipboard / database | Paste attempts, SQLite insert status, error stacks if operations fail. |
 
@@ -53,7 +53,7 @@ Common entries:
 - `🎤 AUDIO_RECORDER_START` / `STOP` – recording lifecycle. Zero-length blobs usually mean the microphone is muted or in use elsewhere.
 - `📡 TRANSCRIPTION_REQUEST` – shows which base URL was used and the payload size. If you set `PPQVOICE_TRANSCRIPTION_BASE_URL`, confirm it appears here.
 - `❌ TRANSCRIPTION_ERROR` – includes HTTP status and truncated response text. Check for expired API keys or unsupported models.
-- `🤖 REASONING_*` – selection + response for OpenAI / Anthropic / Gemini clean-up. Failures include provider-specific error messages.
+- `🤖 REASONING_*` – selection + response for Groq clean-up. Failures include Groq-specific error messages and request IDs.
 - `📋 PASTE_ERROR` – indicates accessibility permission problems.
 
 ## Troubleshooting Cheatsheet
@@ -61,7 +61,7 @@ Common entries:
 | Message | Action |
 | --- | --- |
 | `Microphone Access Denied` | Re-run onboarding or go to System Settings → Privacy & Security → Microphone. |
-| `401 Unauthorized` in transcription | The OpenAI key is missing/invalid. Update `.env` and restart. |
+| `401 Unauthorized` in transcription | The PPQ (Groq) key is missing/invalid. Update `.env` and restart. |
 | `Only HTTPS endpoints are allowed` | Custom base URLs must be HTTPS or localhost. |
 | `Reasoning provider unavailable` | Ensure the relevant API key is set in Settings → AI Models. |
 | `Paste failed` | Re-grant Accessibility permission and restart the app. |

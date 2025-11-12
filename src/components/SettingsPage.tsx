@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from "react";
+import React, { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { RefreshCw, Download, Keyboard, Mic, Shield } from "lucide-react";
@@ -6,24 +6,15 @@ import ApiKeyInput from "./ui/ApiKeyInput";
 import { ConfirmDialog, AlertDialog } from "./ui/dialog";
 import { useSettings } from "../hooks/useSettings";
 import { useDialogs } from "../hooks/useDialogs";
-import { useAgentName } from "../utils/agentName";
 import { usePermissions } from "../hooks/usePermissions";
-import { useClipboard } from "../hooks/useClipboard";
-import { REASONING_PROVIDERS } from "../utils/languages";
+import { getAllReasoningModels } from "../utils/languages";
 import { formatHotkeyLabel } from "../utils/hotkeys";
 import LanguageSelector from "./ui/LanguageSelector";
-import PromptStudio from "./ui/PromptStudio";
-import { API_ENDPOINTS } from "../config/constants";
-import AIModelSelectorEnhanced from "./AIModelSelectorEnhanced";
+import { Toggle } from "./ui/toggle";
 import type { UpdateInfoResult } from "../types/electron";
 const InteractiveKeyboard = React.lazy(() => import("./ui/Keyboard"));
 
-export type SettingsSectionType =
-  | "general"
-  | "transcription"
-  | "aiModels"
-  | "agentConfig"
-  | "prompts";
+export type SettingsSectionType = "general" | "transcription";
 
 interface SettingsPageProps {
   activeSection?: SettingsSectionType;
@@ -44,23 +35,14 @@ export default function SettingsPage({
 
   const {
     preferredLanguage,
-    cloudTranscriptionBaseUrl,
-    cloudReasoningBaseUrl,
     useReasoningModel,
     reasoningModel,
-    reasoningProvider,
-    openaiApiKey,
-    anthropicApiKey,
-    geminiApiKey,
+    ppqApiKey,
     dictationKey,
     setPreferredLanguage,
-    setCloudTranscriptionBaseUrl,
-    setCloudReasoningBaseUrl,
     setUseReasoningModel,
     setReasoningModel,
-    setOpenaiApiKey,
-    setAnthropicApiKey,
-    setGeminiApiKey,
+    setPpqApiKey,
     setDictationKey,
     updateTranscriptionSettings,
     updateReasoningSettings,
@@ -83,14 +65,13 @@ export default function SettingsPage({
     releaseDate?: string;
     releaseNotes?: string;
   }>({});
+  const reasoningOptions = useMemo(() => getAllReasoningModels(), []);
 
   const isUpdateAvailable =
     !updateStatus.isDevelopment &&
     (updateStatus.updateAvailable || updateStatus.updateDownloaded);
 
   const permissionsHook = usePermissions(showAlertDialog);
-  const { pasteFromClipboardWithFallback } = useClipboard(showAlertDialog);
-  const { agentName, setAgentName } = useAgentName();
   const installTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const subscribeToUpdates = useCallback(() => {
@@ -148,11 +129,6 @@ export default function SettingsPage({
   }, [showAlertDialog]);
 
   // Local state for provider selection (overrides computed value)
-  const [localReasoningProvider, setLocalReasoningProvider] = useState(() => {
-    return localStorage.getItem("reasoningProvider") || reasoningProvider;
-  });
-
-  // Defer heavy operations for better performance
   useEffect(() => {
     let mounted = true;
 
@@ -227,108 +203,47 @@ export default function SettingsPage({
     };
   }, [installInitiated, showAlertDialog]);
 
-  const saveReasoningSettings = useCallback(async () => {
-    const normalizedReasoningBase = (cloudReasoningBaseUrl || '').trim();
-    setCloudReasoningBaseUrl(normalizedReasoningBase);
-
-    // Update reasoning settings
-    updateReasoningSettings({ 
-      useReasoningModel, 
+  const saveReasoningSettings = useCallback(() => {
+    updateReasoningSettings({
+      useReasoningModel,
       reasoningModel,
-      cloudReasoningBaseUrl: normalizedReasoningBase
     });
-    
-    // Save API keys to backend based on provider
-    if (localReasoningProvider === "openai" && openaiApiKey) {
-      await window.electronAPI?.saveOpenAIKey(openaiApiKey);
-    }
-    if (localReasoningProvider === "anthropic" && anthropicApiKey) {
-      await window.electronAPI?.saveAnthropicKey(anthropicApiKey);
-    }
-    if (localReasoningProvider === "gemini" && geminiApiKey) {
-      await window.electronAPI?.saveGeminiKey(geminiApiKey);
-    }
-    
-    updateApiKeys({
-      ...(localReasoningProvider === "openai" &&
-        openaiApiKey.trim() && { openaiApiKey }),
-      ...(localReasoningProvider === "anthropic" &&
-        anthropicApiKey.trim() && { anthropicApiKey }),
-      ...(localReasoningProvider === "gemini" &&
-        geminiApiKey.trim() && { geminiApiKey }),
-    });
-    
-    // Save the provider separately since it's computed from the model
-    localStorage.setItem("reasoningProvider", localReasoningProvider);
-
-    const providerLabel =
-      localReasoningProvider === 'custom'
-        ? 'Custom'
-        : REASONING_PROVIDERS[
-            localReasoningProvider as keyof typeof REASONING_PROVIDERS
-          ]?.name || localReasoningProvider;
 
     showAlertDialog({
-      title: "Reasoning Settings Saved",
-      description: `AI text enhancement ${
-        useReasoningModel ? "enabled" : "disabled"
-      } with ${
-        providerLabel
-      } ${reasoningModel}`,
+      title: "AI Clean-up Updated",
+      description: useReasoningModel
+        ? `Groq reasoning enabled with ${reasoningModel}.`
+        : "AI clean-up disabled. Dictation will be pasted after basic punctuation fixes.",
     });
-  }, [
-    useReasoningModel,
-    reasoningModel,
-    localReasoningProvider,
-    openaiApiKey,
-    anthropicApiKey,
-    updateReasoningSettings,
-    updateApiKeys,
-    showAlertDialog,
-  ]);
+  }, [useReasoningModel, reasoningModel, updateReasoningSettings, showAlertDialog]);
 
   const saveApiKey = useCallback(async () => {
     try {
-      if (openaiApiKey) {
-        await window.electronAPI?.saveOpenAIKey(openaiApiKey);
-      }
-      if (anthropicApiKey) {
-        await window.electronAPI?.saveAnthropicKey(anthropicApiKey);
-      }
-      if (geminiApiKey) {
-        await window.electronAPI?.saveGeminiKey(geminiApiKey);
-      }
-
-      updateApiKeys({ openaiApiKey, anthropicApiKey, geminiApiKey });
-
-      if (openaiApiKey) {
-        await window.electronAPI?.createProductionEnvFile(openaiApiKey);
+      const trimmed = ppqApiKey.trim();
+      if (!trimmed) {
+        showAlertDialog({
+          title: "Missing API Key",
+          description: "Add your PPQ (Groq) API key before saving.",
+        });
+        return;
       }
 
-      const savedKeys: string[] = [];
-      if (openaiApiKey) savedKeys.push("OpenAI");
-      if (anthropicApiKey) savedKeys.push("Anthropic");
-      if (geminiApiKey) savedKeys.push("Gemini");
+      await window.electronAPI?.savePPQKey(trimmed);
+      await window.electronAPI?.createProductionEnvFile(trimmed);
+      updateApiKeys({ ppqApiKey: trimmed });
 
       showAlertDialog({
-        title: "API Keys Saved",
-        description: `${savedKeys.join(", ")} API key${savedKeys.length > 1 ? "s" : ""} saved successfully! Your credentials have been securely recorded.`,
+        title: "API Key Saved",
+        description: "Your PPQ key is stored securely on this device.",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to save API key:", error);
-      updateApiKeys({ openaiApiKey });
       showAlertDialog({
         title: "Save Failed",
-        description: "We couldn't persist your API keys. Please try again.",
+        description: error?.message || "We couldn't persist your API key. Please try again.",
       });
     }
-  }, [
-    openaiApiKey,
-    anthropicApiKey,
-    geminiApiKey,
-    updateApiKeys,
-    showAlertDialog,
-  ]);
+  }, [ppqApiKey, updateApiKeys, showAlertDialog]);
 
   const resetAccessibilityPermissions = () => {
     const message = `🔄 RESET ACCESSIBILITY PERMISSIONS\n\nIf you've rebuilt or reinstalled PPQ Voice and automatic inscription isn't functioning, you may have obsolete permissions from the previous version.\n\n📋 STEP-BY-STEP RESTORATION:\n\n1️⃣ Open System Settings (or System Preferences)\n   • macOS Ventura+: Apple Menu → System Settings\n   • Older macOS: Apple Menu → System Preferences\n\n2️⃣ Navigate to Privacy & Security → Accessibility\n\n3️⃣ Look for obsolete PPQ Voice entries:\n   • Any entries named "PPQ Voice"\n   • Any entries named "Electron"\n   • Any entries with unclear or generic names\n   • Entries pointing to old application locations\n\n4️⃣ Remove ALL obsolete entries:\n   • Select each old entry\n   • Click the minus (-) button\n   • Enter your password if prompted\n\n5️⃣ Add the current PPQ Voice:\n   • Click the plus (+) button\n   • Navigate to and select the CURRENT PPQ Voice app\n   • Ensure the checkbox is ENABLED\n\n6️⃣ Restart PPQ Voice completely\n\n💡 This is very common during development when rebuilding applications!\n\nClick OK when you're ready to open System Settings.`;
@@ -795,46 +710,24 @@ export default function SettingsPage({
         return (
           <div className="space-y-6">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Speech to Text Processing
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                PPQ Cloud Configuration
               </h3>
               <p className="text-sm text-gray-600">
-                PPQ Voice uses your OpenAI account for transcription. Enter your key once and we'll securely store it for future sessions.
+                All speech recognition and reasoning now run through Groq. Update your key, language, and clean-up preferences here.
               </p>
             </div>
 
             <div className="space-y-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
-              <h4 className="font-medium text-blue-900">OpenAI-Compatible Cloud Setup</h4>
+              <h4 className="font-medium text-blue-900">PPQ API Key</h4>
               <ApiKeyInput
-                apiKey={openaiApiKey}
-                setApiKey={setOpenaiApiKey}
-                helpText="Supports OpenAI or compatible endpoints"
+                apiKey={ppqApiKey}
+                setApiKey={setPpqApiKey}
+                helpText="Find it at console.groq.com/keys (same key powers Whisper + Llama/Mixtral)."
               />
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-blue-900">
-                  Custom Base URL (optional)
-                </label>
-                <Input
-                  value={cloudTranscriptionBaseUrl}
-                  onChange={(event) => setCloudTranscriptionBaseUrl(event.target.value)}
-                  placeholder="https://api.openai.com/v1"
-                  className="text-sm"
-                />
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCloudTranscriptionBaseUrl(API_ENDPOINTS.TRANSCRIPTION_BASE)}
-                  >
-                    Reset to Default
-                  </Button>
-                </div>
-                <p className="text-xs text-blue-800">
-                  Requests for cloud transcription use this OpenAI-compatible base URL. Leave empty to fall back to
-                  <code className="ml-1">{API_ENDPOINTS.TRANSCRIPTION_BASE}</code>.
-                </p>
-              </div>
+              <Button onClick={saveApiKey} className="w-full">
+                Save API Key
+              </Button>
             </div>
 
             <div className="space-y-4 p-4 bg-gray-50 border border-gray-200 rounded-xl">
@@ -848,184 +741,52 @@ export default function SettingsPage({
                 className="w-full"
               />
               <p className="text-xs text-gray-600">
-                This helps the transcription model understand you faster and with higher accuracy.
+                Whisper will bias toward this language for faster, more accurate transcripts. Leave on Auto for multilingual workflows.
               </p>
             </div>
 
-            <Button
-              onClick={() => {
-                const normalizedTranscriptionBase = (cloudTranscriptionBaseUrl || '').trim();
-                setCloudTranscriptionBaseUrl(normalizedTranscriptionBase);
-
-                updateTranscriptionSettings({
-                  preferredLanguage,
-                  cloudTranscriptionBaseUrl: normalizedTranscriptionBase,
-                });
-
-                if (openaiApiKey.trim()) {
-                  updateApiKeys({ openaiApiKey });
-                }
-
-                const baseLabel = normalizedTranscriptionBase || API_ENDPOINTS.TRANSCRIPTION_BASE;
-
-                showAlertDialog({
-                  title: "Settings Saved",
-                  description: `Cloud transcription enabled via ${baseLabel}. Language preference: ${preferredLanguage}.`,
-                });
-              }}
-              className="w-full"
-            >
-              Save Transcription Settings
-            </Button>
-          </div>
-        );
-
-      case "aiModels":
-        return (
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                AI Text Enhancement
-              </h3>
-              <p className="text-sm text-gray-600 mb-6">
-                Configure how AI models clean up and format your transcriptions.
-                This handles commands like "scratch that", creates proper lists,
-                and fixes obvious errors while preserving your natural tone.
-              </p>
-            </div>
-
-            <AIModelSelectorEnhanced
-              useReasoningModel={useReasoningModel}
-              setUseReasoningModel={(value) => {
-                setUseReasoningModel(value);
-                updateReasoningSettings({ useReasoningModel: value });
-              }}
-              setCloudReasoningBaseUrl={setCloudReasoningBaseUrl}
-              cloudReasoningBaseUrl={cloudReasoningBaseUrl}
-              reasoningModel={reasoningModel}
-              setReasoningModel={setReasoningModel}
-              localReasoningProvider={localReasoningProvider}
-              setLocalReasoningProvider={setLocalReasoningProvider}
-              openaiApiKey={openaiApiKey}
-              setOpenaiApiKey={setOpenaiApiKey}
-              anthropicApiKey={anthropicApiKey}
-              setAnthropicApiKey={setAnthropicApiKey}
-              geminiApiKey={geminiApiKey}
-              setGeminiApiKey={setGeminiApiKey}
-              pasteFromClipboard={pasteFromClipboardWithFallback}
-              showAlertDialog={showAlertDialog}
-            />
-
-            <Button onClick={saveReasoningSettings} className="w-full">
-              Save AI Model Settings
-            </Button>
-          </div>
-        );
-
-      case "agentConfig":
-        return (
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                Agent Configuration
-              </h3>
-              <p className="text-sm text-gray-600 mb-6">
-                Customize your AI assistant's name and behavior to make
-                interactions more personal and effective.
-              </p>
-            </div>
-
-            <div className="space-y-4 p-4 bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-xl">
-              <h4 className="font-medium text-purple-900 mb-3">
-                💡 How to use agent names:
-              </h4>
-              <ul className="text-sm text-purple-800 space-y-2">
-                <li>
-                  • Say "Hey {agentName}, write a formal email" for specific
-                  instructions
-                </li>
-                <li>
-                  • Use "Hey {agentName}, format this as a list" for text
-                  enhancement commands
-                </li>
-                <li>
-                  • The agent will recognize when you're addressing it directly
-                  vs. dictating content
-                </li>
-                <li>
-                  • Makes conversations feel more natural and helps distinguish
-                  commands from dictation
-                </li>
-              </ul>
-            </div>
-
-            <div className="space-y-4 p-4 bg-gray-50 border border-gray-200 rounded-xl">
-              <h4 className="font-medium text-gray-900">Current Agent Name</h4>
-              <div className="flex gap-3">
-                <Input
-                  placeholder="e.g., Assistant, Jarvis, Alex..."
-                  value={agentName}
-                  onChange={(e) => setAgentName(e.target.value)}
-                  className="flex-1 text-center text-lg font-mono"
+            <div className="space-y-4 p-4 bg-white border border-neutral-200 rounded-xl">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-medium text-neutral-900">Groq Smart Clean-Up</h4>
+                  <p className="text-sm text-neutral-600">
+                    Automatically fix punctuation, capitalization, and formatting with Groq reasoning models.
+                  </p>
+                </div>
+                <Toggle
+                  checked={useReasoningModel}
+                  onChange={(checked) => setUseReasoningModel(checked)}
                 />
-                <Button
-                  onClick={() => {
-                    setAgentName(agentName.trim());
-                    showAlertDialog({
-                      title: "Agent Name Updated",
-                      description: `Your agent is now named "${agentName.trim()}". You can address it by saying "Hey ${agentName.trim()}" followed by your instructions.`,
-                    });
-                  }}
-                  disabled={!agentName.trim()}
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-neutral-800">
+                  Reasoning Model
+                </label>
+                <select
+                  className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                  value={reasoningModel}
+                  onChange={(event) => setReasoningModel(event.target.value)}
+                  disabled={!useReasoningModel}
                 >
-                  Save
-                </Button>
+                  {reasoningOptions.map((model) => (
+                    <option key={model.value} value={model.value}>
+                      {model.fullLabel}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-neutral-500">
+                  Groq hosts these models in their LPU data centers for near-instant clean-up.
+                </p>
               </div>
-              <p className="text-xs text-gray-600 mt-2">
-                Choose a name that feels natural to say and remember
-              </p>
-            </div>
 
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <h4 className="font-medium text-blue-900 mb-2">
-                🎯 Example Usage:
-              </h4>
-              <div className="text-sm text-blue-800 space-y-1">
-                <p>
-                  • "Hey {agentName}, write an email to my team about the
-                  meeting"
-                </p>
-                <p>
-                  • "Hey {agentName}, make this more professional" (after
-                  dictating text)
-                </p>
-                <p>• "Hey {agentName}, convert this to bullet points"</p>
-                <p>
-                  • Regular dictation: "This is just normal text" (no agent name
-                  needed)
-                </p>
-              </div>
+              <Button onClick={saveReasoningSettings} className="w-full">
+                Save AI Settings
+              </Button>
             </div>
           </div>
         );
 
-
-      case "prompts":
-        return (
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                AI Prompt Management
-              </h3>
-              <p className="text-sm text-gray-600 mb-6">
-                View and customize the prompts that power PPQ Voice's AI text processing. 
-                Adjust these to change how your transcriptions are formatted and enhanced.
-              </p>
-            </div>
-            
-            <PromptStudio />
-          </div>
-        );
       default:
         return null;
     }

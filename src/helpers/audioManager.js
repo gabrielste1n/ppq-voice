@@ -1,6 +1,6 @@
 import TextCleanup from "../utils/textCleanup";
 import ReasoningService from "../services/ReasoningService";
-import { API_ENDPOINTS, buildApiUrl, normalizeBaseUrl } from "../config/constants";
+import { API_ENDPOINTS } from "../config/constants";
 
 // Debug logger for renderer process
 const debugLogger = {
@@ -111,7 +111,7 @@ class AudioManager {
 
   async processAudio(audioBlob) {
     try {
-      const result = await this.processWithOpenAIAPI(audioBlob);
+      const result = await this.processWithGroqAPI(audioBlob);
       this.onTranscriptionComplete?.(result);
     } catch (error) {
       this.onError?.({
@@ -147,22 +147,22 @@ class AudioManager {
       return this.cachedApiKey;
     }
 
-    let apiKey = await window.electronAPI.getOpenAIKey();
+    let apiKey = await window.electronAPI?.getPPQKey?.();
     if (
       !apiKey ||
       apiKey.trim() === "" ||
-      apiKey === "your_openai_api_key_here"
+      apiKey === "your_ppq_api_key_here"
     ) {
-      apiKey = localStorage.getItem("openaiApiKey");
+      apiKey = localStorage.getItem("ppqApiKey");
     }
 
     if (
       !apiKey ||
       apiKey.trim() === "" ||
-      apiKey === "your_openai_api_key_here"
+      apiKey === "your_ppq_api_key_here"
     ) {
       throw new Error(
-        "OpenAI API key not found. Please set your API key in the .env file or Control Panel."
+        "PPQ API key not found. Please add your key in the Control Panel."
       );
     }
 
@@ -259,8 +259,8 @@ class AudioManager {
 
   async processWithReasoningModel(text) {
     const model = (typeof window !== 'undefined' && window.localStorage)
-      ? (localStorage.getItem("reasoningModel") || "gpt-4o-mini")
-      : "gpt-4o-mini";
+      ? (localStorage.getItem("reasoningModel") || "llama-3.1-8b-instant")
+      : "llama-3.1-8b-instant";
     const agentName = (typeof window !== 'undefined' && window.localStorage)
       ? (localStorage.getItem("agentName") || null)
       : null;
@@ -355,11 +355,9 @@ class AudioManager {
     
     // Safe localStorage access
     const reasoningModel = (typeof window !== 'undefined' && window.localStorage) 
-      ? (localStorage.getItem("reasoningModel") || "gpt-4o-mini") 
-      : "gpt-4o-mini";
-    const reasoningProvider = (typeof window !== 'undefined' && window.localStorage)
-      ? (localStorage.getItem("reasoningProvider") || "auto")
-      : "auto";
+      ? (localStorage.getItem("reasoningModel") || "llama-3.1-8b-instant") 
+      : "llama-3.1-8b-instant";
+    const reasoningProvider = "groq";
     const agentName = (typeof window !== 'undefined' && window.localStorage)
       ? (localStorage.getItem("agentName") || null)
       : null;
@@ -410,7 +408,7 @@ class AudioManager {
     return AudioManager.cleanTranscription(text);
   }
 
-  async processWithOpenAIAPI(audioBlob) {
+  async processWithGroqAPI(audioBlob) {
     try {
       // Parallel: get API key (cached) and optimize audio
       const [apiKey, optimizedAudio] = await Promise.all([
@@ -420,7 +418,7 @@ class AudioManager {
 
       const formData = new FormData();
       formData.append("file", optimizedAudio, "audio.wav");
-      formData.append("model", "whisper-1");
+      formData.append("model", "whisper-large-v3");
 
       // Add language hint if set (improves processing speed)
       const language = localStorage.getItem("preferredLanguage");
@@ -428,16 +426,13 @@ class AudioManager {
         formData.append("language", language);
       }
 
-      const response = await fetch(
-        this.getTranscriptionEndpoint(),
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-          },
-          body: formData,
-        }
-      );
+      const response = await fetch(API_ENDPOINTS.GROQ_TRANSCRIPTION, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: formData,
+      });
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -447,45 +442,14 @@ class AudioManager {
       const result = await response.json();
       
       if (result.text) {
-        const text = await this.processTranscription(result.text, "openai");
-        const source = await this.isReasoningAvailable() ? "openai-reasoned" : "openai";
+        const text = await this.processTranscription(result.text, "groq");
+        const source = await this.isReasoningAvailable() ? "groq-reasoned" : "groq";
         return { success: true, text, source };
       } else {
         throw new Error("No text transcribed");
       }
     } catch (error) {
       throw error;
-    }
-  }
-
-  getTranscriptionEndpoint() {
-    try {
-      const stored = typeof localStorage !== "undefined"
-        ? localStorage.getItem("cloudTranscriptionBaseUrl") || ""
-        : "";
-      const trimmed = stored.trim();
-      const base = trimmed ? trimmed : API_ENDPOINTS.TRANSCRIPTION_BASE;
-      const normalizedBase = normalizeBaseUrl(base);
-
-      if (!normalizedBase) {
-        return API_ENDPOINTS.TRANSCRIPTION;
-      }
-
-      // Security: Only allow HTTPS endpoints (except localhost for development)
-      const isLocalhost = normalizedBase.includes('://localhost') || normalizedBase.includes('://127.0.0.1');
-      if (!normalizedBase.startsWith('https://') && !isLocalhost) {
-        console.warn('Non-HTTPS endpoint rejected for security. Using default.');
-        return API_ENDPOINTS.TRANSCRIPTION;
-      }
-
-      if (/\/audio\/(transcriptions|translations)$/i.test(normalizedBase)) {
-        return normalizedBase;
-      }
-
-      return buildApiUrl(normalizedBase, '/audio/transcriptions');
-    } catch (error) {
-      console.warn('Failed to resolve transcription endpoint:', error);
-      return API_ENDPOINTS.TRANSCRIPTION;
     }
   }
 

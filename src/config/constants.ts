@@ -29,7 +29,7 @@ export const normalizeBaseUrl = (value?: string | null): string => {
 };
 
 export const buildApiUrl = (base: string, path: string): string => {
-  const normalizedBase = normalizeBaseUrl(base) || "https://api.openai.com/v1";
+  const normalizedBase = normalizeBaseUrl(base) || "https://api.groq.com/openai/v1";
   if (!path) {
     return normalizedBase;
   }
@@ -49,35 +49,20 @@ const computeBaseUrl = (candidates: Array<string | undefined>, fallback: string)
   return fallback;
 };
 
-const DEFAULT_OPENAI_BASE = computeBaseUrl(
+const DEFAULT_GROQ_BASE = computeBaseUrl(
   [
-    env.PPQVOICE_OPENAI_BASE_URL as string | undefined,
-    env.OPENAI_BASE_URL as string | undefined,
+    env.PPQVOICE_GROQ_BASE_URL as string | undefined,
+    env.PPQVOICE_OPENAI_BASE_URL as string | undefined, // legacy override
+    env.OPENAI_BASE_URL as string | undefined, // legacy fallback
   ],
-  'https://api.openai.com/v1'
-);
-
-const DEFAULT_TRANSCRIPTION_BASE = computeBaseUrl(
-  [
-    env.PPQVOICE_TRANSCRIPTION_BASE_URL as string | undefined,
-    env.WHISPER_BASE_URL as string | undefined,
-  ],
-  DEFAULT_OPENAI_BASE
+  'https://api.groq.com/openai/v1'
 );
 
 export const API_ENDPOINTS = {
-  OPENAI_BASE: DEFAULT_OPENAI_BASE,
-  OPENAI: buildApiUrl(DEFAULT_OPENAI_BASE, '/responses'),
-  OPENAI_MODELS: buildApiUrl(DEFAULT_OPENAI_BASE, '/models'),
-  ANTHROPIC: 'https://api.anthropic.com/v1/messages',
-  GEMINI: 'https://generativelanguage.googleapis.com/v1beta',
-  TRANSCRIPTION_BASE: DEFAULT_TRANSCRIPTION_BASE,
-  TRANSCRIPTION: buildApiUrl(DEFAULT_TRANSCRIPTION_BASE, '/audio/transcriptions'),
-} as const;
-
-export const API_VERSIONS = {
-  ANTHROPIC: '2023-06-01',
-  GEMINI: 'v1beta',
+  GROQ_BASE: DEFAULT_GROQ_BASE,
+  GROQ_CHAT: buildApiUrl(DEFAULT_GROQ_BASE, '/chat/completions'),
+  GROQ_MODELS: buildApiUrl(DEFAULT_GROQ_BASE, '/models'),
+  GROQ_TRANSCRIPTION: buildApiUrl(DEFAULT_GROQ_BASE, '/audio/transcriptions'),
 } as const;
 
 // Model Configuration
@@ -91,10 +76,6 @@ export const MODEL_CONSTRAINTS = {
 export const TOKEN_LIMITS = {
   MIN_TOKENS: 100,
   MAX_TOKENS: 2048,
-  MIN_TOKENS_ANTHROPIC: 100,
-  MAX_TOKENS_ANTHROPIC: 4096,
-  MIN_TOKENS_GEMINI: 100,
-  MAX_TOKENS_GEMINI: 8192,
   TOKEN_MULTIPLIER: 2, // text.length * multiplier
   REASONING_CONTEXT_SIZE: 4096,
 } as const;

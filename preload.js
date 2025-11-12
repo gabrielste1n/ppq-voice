@@ -16,8 +16,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.invoke("db-delete-transcription", id),
 
   // Environment variables
-  getOpenAIKey: () => ipcRenderer.invoke("get-openai-key"),
-  saveOpenAIKey: (key) => ipcRenderer.invoke("save-openai-key", key),
+  getPPQKey: () => ipcRenderer.invoke("get-ppq-key"),
+  savePPQKey: (key) => ipcRenderer.invoke("save-ppq-key", key),
   createProductionEnvFile: (key) =>
     ipcRenderer.invoke("create-production-env-file", key),
 
@@ -63,18 +63,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   // External link opener
   openExternal: (url) => ipcRenderer.invoke("open-external", url),
-  
-  // Anthropic API
-  getAnthropicKey: () => ipcRenderer.invoke("get-anthropic-key"),
-  saveAnthropicKey: (key) => ipcRenderer.invoke("save-anthropic-key", key),
-
-  // Gemini API
-  getGeminiKey: () => ipcRenderer.invoke("get-gemini-key"),
-  saveGeminiKey: (key) => ipcRenderer.invoke("save-gemini-key", key),
-  
-  // Anthropic reasoning
-  processAnthropicReasoning: (text, modelId, agentName, config) =>
-    ipcRenderer.invoke("process-anthropic-reasoning", text, modelId, agentName, config),
   
   // Debug logging for reasoning pipeline
   logReasoning: (stage, details) => 

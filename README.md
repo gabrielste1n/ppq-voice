@@ -1,12 +1,12 @@
 # PPQ Voice
 
-PPQ Voice is a lightweight Electron desktop app that turns any text field into a dictation box. Press a single hotkey, speak, and the app streams your audio directly to OpenAI’s speech-to-text API. The finished text is automatically cleaned up (Optionally by OpenAI, Anthropic Claude, or Google Gemini) and pasted wherever your cursor was. No local models, no Python installs—just reliable cloud transcription with a tidy UI.
+PPQ Voice is a lightweight Electron desktop app that turns any text field into a dictation box. Press a single hotkey, speak, and the app streams your audio directly to Groq’s hosted Whisper endpoint. The finished text is automatically cleaned up by Groq’s Llama/Mixtral models and pasted wherever your cursor was. No local models, no Python installs—just reliable cloud transcription with a tidy UI.
 
 ## Why Teams Use PPQ Voice
 
-- **Cloud-first dictation** – Streams audio to OpenAI Whisper API for fast, consistent transcriptions.
+- **Cloud-first dictation** – Streams audio to Groq’s Whisper API for fast, consistent transcriptions.
 - **Automatic paste + history** – Captured text is pasted into the active app and stored locally in SQLite.
-- **AI clean-up pipeline** – Optional refinement via OpenAI Responses, Anthropic Claude, or Gemini models.
+- **AI clean-up pipeline** – Groq reasoning models (Llama 3.1 + Mixtral) tidy punctuation, lists, and formatting automatically.
 - **Cross-platform** – macOS, Windows, and Linux packages powered by Electron + Vite.
 - **Ops-friendly** – Toggle `PPQVOICE_DEBUG=true` to write rich logs to the user data directory.
 - **Zero local-model overhead** – No llama.cpp builds, Python dependencies, or multi-GB downloads.
@@ -17,7 +17,7 @@ PPQ Voice is a lightweight Electron desktop app that turns any text field into a
 git clone https://github.com/HeroTools/ppq-voice.git
 cd ppq-voice
 npm install
-cp env.example .env   # add your OpenAI / optional Anthropic+Gemini keys
+cp env.example .env   # add your PPQ (Groq) API key
 npm run dev           # launches Vite + Electron with hot reload
 ```
 
@@ -29,11 +29,8 @@ Want the production build? Run `npm start` to launch Electron with the prebuilt 
 
 | Key | Required | Description |
 | --- | --- | --- |
-| `OPENAI_API_KEY` | ✅ | Used for speech-to-text and (optionally) reasoning. |
-| `ANTHROPIC_API_KEY` | optional | Enables Claude-based text clean-up. |
-| `GEMINI_API_KEY` | optional | Enables Gemini-based text clean-up. |
-| `PPQVOICE_OPENAI_BASE_URL` | optional | Override the default OpenAI base (HTTPS or localhost only). |
-| `PPQVOICE_TRANSCRIPTION_BASE_URL` | optional | Override the transcription endpoint separately. |
+| `PPQ_API_KEY` | ✅ | The Groq key used for Whisper transcription and Llama/Mixtral clean-up. |
+| `PPQVOICE_GROQ_BASE_URL` | optional | Override the Groq base URL (defaults to `https://api.groq.com/openai/v1`; HTTPS or localhost only). |
 | `PPQVOICE_DEBUG` | optional | `true` writes detailed logs to `~/Library/Application Support/ppq-voice/logs` (platform-specific equivalents). |
 
 All other preferences (language, reasoning model, hotkeys, API fallbacks) can be changed inside the Control Panel UI. They persist in `localStorage` and synchronize with the renderer.
@@ -73,7 +70,7 @@ You can revisit both in **Control Panel → Settings → Permissions** if someth
 
 | Symptom | Fix |
 | --- | --- |
-| “OpenAI key not found” | Confirm `.env` + Control Panel → AI Keys has a valid value. |
+| “PPQ key not found” | Confirm `.env` + Control Panel → PPQ Cloud has a valid value. |
 | Nothing pastes after transcription | Re-request Accessibility permission from Settings, then relaunch the app. |
 | Need extra logs | Run `PPQVOICE_DEBUG=true npm start` (or `npm run dev -- --debug`). Logs go to `%APPDATA%/ppq-voice/logs`, `~/Library/Application Support/ppq-voice/logs`, or `~/.config/ppq-voice/logs`. |
 | Updater stuck | Use Control Panel → Settings → Updates → “Download Update” to retry, or grab the latest release from GitHub. |

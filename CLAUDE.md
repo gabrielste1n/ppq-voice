@@ -8,8 +8,8 @@ PPQ Voice is an Electron 36 desktop app (React 19 renderer) that:
 
 1. Listens for a global hotkey (default `\``).
 2. Records audio via the browser’s `MediaRecorder`.
-3. Streams the audio blob to OpenAI’s Whisper API (cloud-only).
-4. Optionally runs the transcript through a reasoning model (OpenAI Responses, Anthropic Claude, or Google Gemini).
+3. Streams the audio blob to Groq’s hosted Whisper API (cloud-only).
+4. Optionally runs the transcript through Groq’s reasoning models (Llama 3.1 + Mixtral) for clean-up.
 5. Pastes the final text wherever the user’s cursor sits and stores it in a local SQLite DB.
 
 There is **no** local inferencing, Python bridge, or llama.cpp dependency anymore. Everything runs in the renderer + Electron main process.
@@ -19,7 +19,7 @@ There is **no** local inferencing, Python bridge, or llama.cpp dependency anymor
 ```
 Renderer (React/Vite)
  ├─ audioManager.js ........ handles recording, sending to cloud APIs, reasoning pipeline
- ├─ ReasoningService.ts .... routes clean-up to OpenAI / Anthropic / Gemini
+ ├─ ReasoningService.ts .... routes clean-up to Groq reasoning models
  ├─ UI (App.jsx, SettingsPage.tsx, OnboardingFlow.tsx, etc.)
  └─ Hooks (useSettings, useAudioRecording, usePermissions, useLocalStorage)
 
@@ -40,29 +40,26 @@ Main process (Electron)
 ### Dictation
 
 1. `AudioManager.startRecording()` – uses `navigator.mediaDevices.getUserMedia`.
-2. On stop → converts blob to WAV → `optimizeAudio` (16 kHz mono) → `processWithOpenAIAPI`.
-3. Sends `multipart/form-data` to `API_ENDPOINTS.TRANSCRIPTION` (default `https://api.openai.com/v1/audio/transcriptions` or overridden via `PPQVOICE_TRANSCRIPTION_BASE_URL`).
+2. On stop → converts blob to WAV → `optimizeAudio` (16 kHz mono) → `processWithGroqAPI`.
+3. Sends `multipart/form-data` to `API_ENDPOINTS.GROQ_TRANSCRIPTION` (default `https://api.groq.com/openai/v1/audio/transcriptions` or overridden via `PPQVOICE_GROQ_BASE_URL`).
 4. On success, runs `processTranscription`, optionally piping through `ReasoningService`.
 5. Calls `window.electronAPI.pasteText` and `saveTranscription`.
 
 ### ReasoningService
 
-- Resolves provider from `reasoningModel` (`openai`, `anthropic`, `gemini`).
-- Uses cached API keys via `SecureCache`.
-- For OpenAI it tries `/responses` first, then `/chat/completions` if needed.
-- For Anthropic/Gemini it makes fetch calls from the renderer (no CORS issues thanks to Electron).
-- Logs every stage via `window.electronAPI.logReasoning`.
+- Uses Groq exclusively – a single PPQ API key is cached via `SecureCache`.
+- Calls `https://api.groq.com/openai/v1/chat/completions` with Whisper output + clean-up prompts.
+- Extracts the first `choices[].message.content` text payload and returns it to `audioManager`.
+- Logs every stage via `window.electronAPI.logReasoning` for debugging.
 
 ## 4. Settings + Storage
 
 `src/hooks/useSettings.ts` centralises everything. Keys currently stored in `localStorage`:
 
-- `preferredLanguage` – used to pre-fill the transcription request.
-- `cloudTranscriptionBaseUrl`, `cloudReasoningBaseUrl` – optional overrides; validated to HTTPS or localhost.
-- `useReasoningModel`, `reasoningModel` – toggles the clean-up step and chosen model ID.
-- `openaiApiKey`, `anthropicApiKey`, `geminiApiKey` – cached in renderer (also mirrored to `.env` via `environment.js`).
+- `preferredLanguage` – used to pre-fill the Groq Whisper request.
+- `useReasoningModel`, `reasoningModel` – toggles Groq clean-up and the selected model ID.
+- `ppqApiKey` – cached in the renderer (also mirrored to `.env` via `environment.js`).
 - `dictationKey` – user’s chosen hotkey.
-- `agentName`, `customPrompts` – used by Prompt Studio + ReasoningService.
 
 ## 5. Permissions & Windows
 

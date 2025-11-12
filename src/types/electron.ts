@@ -60,11 +60,9 @@ declare global {
       deleteTranscription: (id: number) => Promise<{ success: boolean }>;
 
       // API key management
-      getOpenAIKey: () => Promise<string>;
-      saveOpenAIKey: (key: string) => Promise<{ success: boolean }>;
+      getPPQKey: () => Promise<string>;
+      savePPQKey: (key: string) => Promise<{ success: boolean }>;
       createProductionEnvFile: (key: string) => Promise<void>;
-      getAnthropicKey: () => Promise<string | null>;
-      saveAnthropicKey: (key: string) => Promise<void>;
 
       // Clipboard operations
       readClipboard: () => Promise<string>;
@@ -84,9 +82,6 @@ declare global {
         error?: string;
       }>;
 
-      // Anthropic reasoning
-      processAnthropicReasoning: (text: string, modelId: string, agentName: string | null, config: any) => Promise<{ success: boolean; text?: string; error?: string }>;
-      
       // Window control operations
       windowMinimize: () => Promise<void>;
       windowMaximize: () => Promise<void>;
@@ -132,10 +127,6 @@ declare global {
 
       // Hotkey management
       updateHotkey: (key: string) => Promise<void>;
-      
-      // Gemini API key management
-      getGeminiKey: () => Promise<string | null>;
-      saveGeminiKey: (key: string) => Promise<void>;
       
       // Debug logging
       logReasoning?: (stage: string, details: any) => Promise<void>;

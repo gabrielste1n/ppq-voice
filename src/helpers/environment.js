@@ -37,51 +37,15 @@ class EnvironmentManager {
     }
   }
 
-  getOpenAIKey() {
-    const apiKey = process.env.OPENAI_API_KEY;
+  getPPQApiKey() {
+    const apiKey = process.env.PPQ_API_KEY || process.env.OPENAI_API_KEY;
     return apiKey || "";
   }
 
-  saveOpenAIKey(key) {
+  savePPQApiKey(key) {
     try {
       // Update the environment variable in memory for immediate use
-      process.env.OPENAI_API_KEY = key;
-      // Persist all keys to file
-      this.saveAllKeysToEnvFile();
-      return { success: true };
-    } catch (error) {
-      // Silent error - already throwing
-      throw error;
-    }
-  }
-
-  getAnthropicKey() {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    return apiKey || "";
-  }
-
-  saveAnthropicKey(key) {
-    try {
-      // Update the environment variable in memory for immediate use
-      process.env.ANTHROPIC_API_KEY = key;
-      // Persist all keys to file
-      this.saveAllKeysToEnvFile();
-      return { success: true };
-    } catch (error) {
-      // Silent error - already throwing
-      throw error;
-    }
-  }
-
-  getGeminiKey() {
-    const apiKey = process.env.GEMINI_API_KEY;
-    return apiKey || "";
-  }
-
-  saveGeminiKey(key) {
-    try {
-      // Update the environment variable in memory for immediate use
-      process.env.GEMINI_API_KEY = key;
+      process.env.PPQ_API_KEY = key;
       // Persist all keys to file
       this.saveAllKeysToEnvFile();
       return { success: true };
@@ -97,7 +61,7 @@ class EnvironmentManager {
 
       const envContent = `# PPQ Voice Environment Variables
 # This file was created automatically for production use
-OPENAI_API_KEY=${apiKey}
+PPQ_API_KEY=${apiKey}
 `;
 
       fs.writeFileSync(envPath, envContent, "utf8");
@@ -120,14 +84,11 @@ OPENAI_API_KEY=${apiKey}
 # This file was created automatically for production use
 `;
       
-      if (process.env.OPENAI_API_KEY) {
-        envContent += `OPENAI_API_KEY=${process.env.OPENAI_API_KEY}\n`;
-      }
-      if (process.env.ANTHROPIC_API_KEY) {
-        envContent += `ANTHROPIC_API_KEY=${process.env.ANTHROPIC_API_KEY}\n`;
-      }
-      if (process.env.GEMINI_API_KEY) {
-        envContent += `GEMINI_API_KEY=${process.env.GEMINI_API_KEY}\n`;
+      if (process.env.PPQ_API_KEY) {
+        envContent += `PPQ_API_KEY=${process.env.PPQ_API_KEY}\n`;
+      } else if (process.env.OPENAI_API_KEY) {
+        // Legacy fallback so existing environments continue to work
+        envContent += `PPQ_API_KEY=${process.env.OPENAI_API_KEY}\n`;
       }
 
       fs.writeFileSync(envPath, envContent, "utf8");

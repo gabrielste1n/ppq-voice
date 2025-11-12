@@ -1,18 +1,14 @@
 import { useCallback } from "react";
 import { useLocalStorage } from "./useLocalStorage";
 import { getModelProvider } from "../utils/languages";
-import { API_ENDPOINTS } from "../config/constants";
 
 export interface TranscriptionSettings {
   preferredLanguage: string;
-  cloudTranscriptionBaseUrl?: string;
 }
 
 export interface ReasoningSettings {
   useReasoningModel: boolean;
   reasoningModel: string;
-  reasoningProvider: string;
-  cloudReasoningBaseUrl?: string;
 }
 
 export interface HotkeySettings {
@@ -20,33 +16,13 @@ export interface HotkeySettings {
 }
 
 export interface ApiKeySettings {
-  openaiApiKey: string;
-  anthropicApiKey: string;
-  geminiApiKey: string;
+  ppqApiKey: string;
 }
 
 export function useSettings() {
   const [preferredLanguage, setPreferredLanguage] = useLocalStorage(
     "preferredLanguage",
     "en",
-    {
-      serialize: String,
-      deserialize: String,
-    }
-  );
-
-  const [cloudTranscriptionBaseUrl, setCloudTranscriptionBaseUrl] = useLocalStorage(
-    "cloudTranscriptionBaseUrl",
-    API_ENDPOINTS.TRANSCRIPTION_BASE,
-    {
-      serialize: String,
-      deserialize: String,
-    }
-  );
-
-  const [cloudReasoningBaseUrl, setCloudReasoningBaseUrl] = useLocalStorage(
-    "cloudReasoningBaseUrl",
-    API_ENDPOINTS.OPENAI_BASE,
     {
       serialize: String,
       deserialize: String,
@@ -65,7 +41,7 @@ export function useSettings() {
 
   const [reasoningModel, setReasoningModel] = useLocalStorage(
     "reasoningModel",
-    "gpt-4o-mini",
+    "llama-3.1-8b-instant",
     {
       serialize: String,
       deserialize: String,
@@ -73,28 +49,10 @@ export function useSettings() {
   );
 
   // API keys
-  const [openaiApiKey, setOpenaiApiKey] = useLocalStorage("openaiApiKey", "", {
+  const [ppqApiKey, setPpqApiKey] = useLocalStorage("ppqApiKey", "", {
     serialize: String,
     deserialize: String,
   });
-
-  const [anthropicApiKey, setAnthropicApiKey] = useLocalStorage(
-    "anthropicApiKey",
-    "",
-    {
-      serialize: String,
-      deserialize: String,
-    }
-  );
-
-  const [geminiApiKey, setGeminiApiKey] = useLocalStorage(
-    "geminiApiKey",
-    "",
-    {
-      serialize: String,
-      deserialize: String,
-    }
-  );
 
   // Hotkey
   const [dictationKey, setDictationKey] = useLocalStorage("dictationKey", "", {
@@ -108,15 +66,11 @@ export function useSettings() {
   // Batch operations
   const updateTranscriptionSettings = useCallback(
     (settings: Partial<TranscriptionSettings>) => {
-      if (settings.preferredLanguage !== undefined)
+      if (settings.preferredLanguage !== undefined) {
         setPreferredLanguage(settings.preferredLanguage);
-      if (settings.cloudTranscriptionBaseUrl !== undefined)
-        setCloudTranscriptionBaseUrl(settings.cloudTranscriptionBaseUrl);
+      }
     },
-    [
-      setPreferredLanguage,
-      setCloudTranscriptionBaseUrl,
-    ]
+    [setPreferredLanguage]
   );
 
   const updateReasoningSettings = useCallback(
@@ -125,58 +79,28 @@ export function useSettings() {
         setUseReasoningModel(settings.useReasoningModel);
       if (settings.reasoningModel !== undefined)
         setReasoningModel(settings.reasoningModel);
-      if (settings.cloudReasoningBaseUrl !== undefined)
-        setCloudReasoningBaseUrl(settings.cloudReasoningBaseUrl);
-      // reasoningProvider is computed from reasoningModel, not stored separately
     },
-    [setUseReasoningModel, setReasoningModel, setCloudReasoningBaseUrl]
+    [setUseReasoningModel, setReasoningModel]
   );
 
   const updateApiKeys = useCallback(
     (keys: Partial<ApiKeySettings>) => {
-      if (keys.openaiApiKey !== undefined) setOpenaiApiKey(keys.openaiApiKey);
-      if (keys.anthropicApiKey !== undefined)
-        setAnthropicApiKey(keys.anthropicApiKey);
-      if (keys.geminiApiKey !== undefined)
-        setGeminiApiKey(keys.geminiApiKey);
+      if (keys.ppqApiKey !== undefined) setPpqApiKey(keys.ppqApiKey);
     },
-    [setOpenaiApiKey, setAnthropicApiKey, setGeminiApiKey]
+    [setPpqApiKey]
   );
 
   return {
     preferredLanguage,
-    cloudTranscriptionBaseUrl,
-    cloudReasoningBaseUrl,
     useReasoningModel,
     reasoningModel,
     reasoningProvider,
-    openaiApiKey,
-    anthropicApiKey,
-    geminiApiKey,
+    ppqApiKey,
     dictationKey,
     setPreferredLanguage,
-    setCloudTranscriptionBaseUrl,
-    setCloudReasoningBaseUrl,
     setUseReasoningModel,
     setReasoningModel,
-    setReasoningProvider: (provider: string) => {
-      if (provider === 'custom') {
-        return;
-      }
-
-      const providerModels = {
-        openai: "gpt-4o-mini", // Start with cost-efficient multimodal model
-        anthropic: "claude-3.5-sonnet-20241022",
-        gemini: "gemini-2.5-flash",
-      };
-      setReasoningModel(
-        providerModels[provider as keyof typeof providerModels] ||
-          "gpt-4o-mini"
-      );
-    },
-    setOpenaiApiKey,
-    setAnthropicApiKey,
-    setGeminiApiKey,
+    setPpqApiKey,
     setDictationKey,
     updateTranscriptionSettings,
     updateReasoningSettings,

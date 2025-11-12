@@ -4,16 +4,11 @@ const path = require("path");
 console.log("Setting up PPQ Voice...");
 
 const envTemplate = `# PPQ Voice Environment Variables
-# Required: OpenAI key for transcription
-OPENAI_API_KEY=your_openai_api_key_here
+# Required: PPQ (Groq) key for transcription + reasoning
+PPQ_API_KEY=your_ppq_groq_api_key_here
 
-# Optional: Claude + Gemini keys for text refinement
-ANTHROPIC_API_KEY=
-GEMINI_API_KEY=
-
-# Optional: Override API bases (HTTPS only)
-PPQVOICE_OPENAI_BASE_URL=
-PPQVOICE_TRANSCRIPTION_BASE_URL=
+# Optional: Override the Groq base URL (HTTPS or localhost only)
+PPQVOICE_GROQ_BASE_URL=
 
 # Optional: Verbose logging toggle
 PPQVOICE_DEBUG=false`;
@@ -29,7 +24,7 @@ console.log(`
 🎉 Setup complete!
 
 Next steps:
-1. Add your OpenAI API key to the .env file
+1. Add your PPQ (Groq) API key to the .env file
 2. Install dependencies: npm install
 3. Run the app: npm start
 
