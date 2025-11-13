@@ -1,3 +1,5 @@
+const debugLogger = require("./debugLogger");
+
 class DevServerManager {
   static async waitForDevServer(
     url = "http://localhost:5174/",
@@ -30,17 +32,25 @@ class DevServerManager {
         });
 
         if (result) {
-          console.log(`Dev server ready after ${i + 1} attempts`);
+          debugLogger.logEvent("dev-server", "ready", {
+            attempts: i + 1,
+            url,
+          });
           return true;
         }
       } catch (error) {
-        console.log(
-          `Waiting for dev server... attempt ${i + 1}/${maxAttempts}`
-        );
+        debugLogger.logEvent("dev-server", "waiting", {
+          attempt: i + 1,
+          maxAttempts,
+          url,
+        });
       }
       await new Promise((resolve) => setTimeout(resolve, delay));
     }
-    console.error("Dev server failed to start within timeout");
+    debugLogger.error("dev-server", "timeout", {
+      maxAttempts,
+      url,
+    });
     return false;
   }
 

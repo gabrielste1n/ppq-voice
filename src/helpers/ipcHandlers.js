@@ -75,18 +75,19 @@ class IPCHandlers {
 
     ipcMain.handle("save-settings", async (event, settings) => {
       try {
-        // Save settings to environment and localStorage
         if (settings.apiKey) {
           await this.environmentManager.savePPQApiKey(settings.apiKey);
         }
         return { success: true };
       } catch (error) {
-        console.error("Failed to save settings:", error);
+        debugLogger.error("ipc", "save-settings-failed", {
+          error: error.message,
+          stack: error.stack
+        });
         return { success: false, error: error.message };
       }
     });
 
-    // Database handlers
     ipcMain.handle("db-save-transcription", async (event, text) => {
       const result = this.databaseManager.saveTranscription(text);
       if (result?.transcription) {
@@ -161,10 +162,21 @@ class IPCHandlers {
       }
     });
 
-    // Debug logging handler for reasoning pipeline
-    ipcMain.handle("log-reasoning", async (event, stage, details) => {
+    // Debug logging handlers
+    ipcMain.handle("log-reasoning", async (_event, stage, details) => {
       debugLogger.logReasoning(stage, details);
       return { success: true };
+    });
+
+    ipcMain.handle("debug-log", async (_event, payload = {}) => {
+      const { channel = "app", event: entryEvent = "event", details, level } =
+        payload;
+      debugLogger.logEvent(channel, entryEvent, details || {}, level || "info");
+      return { success: true };
+    });
+
+    ipcMain.handle("get-debug-mode", async () => {
+      return { enabled: debugLogger.isEnabled() };
     });
   }
 

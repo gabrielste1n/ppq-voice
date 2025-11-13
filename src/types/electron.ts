@@ -150,6 +150,13 @@ declare global {
       
       // Debug logging
       logReasoning?: (stage: string, details: any) => Promise<void>;
+      logDebugEvent?: (
+        channel: string,
+        event: string,
+        details?: Record<string, any>,
+        level?: "debug" | "info" | "warn" | "error"
+      ) => Promise<void>;
+      getDebugMode?: () => Promise<boolean>;
       
       // FFmpeg availability
       checkFFmpegAvailability: () => Promise<boolean>;

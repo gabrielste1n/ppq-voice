@@ -2,9 +2,15 @@ const fs = require("fs");
 const path = require("path");
 const { app } = require("electron");
 
+const LEVELS = {
+  debug: "DEBUG",
+  info: "INFO",
+  warn: "WARN",
+  error: "ERROR",
+};
+
 class DebugLogger {
   constructor() {
-    // Only enable debug mode when explicitly requested
     this.debugMode =
       process.env.PPQVOICE_DEBUG === "true" ||
       process.argv.includes("--debug") ||
@@ -13,21 +19,17 @@ class DebugLogger {
     this.logStream = null;
 
     if (this.debugMode) {
-      // Create logs directory
       const logsDir = path.join(app.getPath("userData"), "logs");
       if (!fs.existsSync(logsDir)) {
         fs.mkdirSync(logsDir, { recursive: true });
       }
 
-      // Create log file with timestamp
       const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
       this.logFile = path.join(logsDir, `debug-${timestamp}.log`);
-
-      // Create write stream for better performance
       this.logStream = fs.createWriteStream(this.logFile, { flags: "a" });
 
-      this.log("🚀 Debug logging enabled", `Log file: ${this.logFile}`);
-      this.log("System Info:", {
+      this.logEvent("system", "debug-enabled", {
+        logFile: this.logFile,
         platform: process.platform,
         nodeVersion: process.version,
         electronVersion: process.versions.electron,
@@ -39,61 +41,53 @@ class DebugLogger {
     }
   }
 
-  log(...args) {
-    if (!this.debugMode) return;
+  isEnabled() {
+    return this.debugMode;
+  }
+
+  getLogPath() {
+    return this.logFile;
+  }
+
+  logEvent(channel, event, details = {}, level = "info") {
+    if (!this.debugMode) {
+      return;
+    }
 
     const timestamp = new Date().toISOString();
-    const message = args
-      .map((arg) =>
-        typeof arg === "object" ? JSON.stringify(arg, null, 2) : String(arg)
-      )
-      .join(" ");
+    const normalizedLevel =
+      LEVELS[level] || LEVELS.info;
+    const normalizedDetails =
+      details && typeof details === "object"
+        ? details
+        : { message: details };
+    const entry = {
+      timestamp,
+      level: normalizedLevel,
+      channel,
+      event,
+      ...normalizedDetails,
+    };
 
-    const logLine = `[${timestamp}] ${message}\n`;
+    const consoleMethod =
+      normalizedLevel === LEVELS.error
+        ? console.error
+        : normalizedLevel === LEVELS.warn
+        ? console.warn
+        : console.log;
 
-    console.log(...args);
+    consoleMethod(
+      `[${entry.level}] [${entry.channel}] ${entry.event}`,
+      normalizedDetails
+    );
 
     if (this.logStream) {
-      this.logStream.write(logLine);
+      this.logStream.write(JSON.stringify(entry) + "\n");
     }
   }
 
   logReasoning(stage, details) {
-    if (!this.debugMode) return;
-
-    const reasoningInfo = {
-      stage,
-      timestamp: new Date().toISOString(),
-      ...details,
-    };
-
-    // Special formatting for reasoning logs to make them stand out
-    console.log(`\n🤖 === REASONING ${stage.toUpperCase()} ===`);
-    console.log(reasoningInfo);
-    console.log(`================================\n`);
-
-    this.log(`🤖 Reasoning Pipeline - ${stage}`, reasoningInfo);
-  }
-
-  error(...args) {
-    if (!this.debugMode) return;
-
-    const timestamp = new Date().toISOString();
-    const message =
-      "❌ ERROR: " +
-      args
-        .map((arg) =>
-          typeof arg === "object" ? JSON.stringify(arg, null, 2) : String(arg)
-        )
-        .join(" ");
-
-    const logLine = `[${timestamp}] ${message}\n`;
-
-    console.error(...args);
-
-    if (this.logStream) {
-      this.logStream.write(logLine);
-    }
+    this.logEvent("reasoning", stage, details, "debug");
   }
 
   logFFmpegDebug(context, ffmpegPath, additionalInfo = {}) {
@@ -121,7 +115,6 @@ class DebugLogger {
       }
     }
 
-    // Check parent directory permissions
     if (ffmpegPath) {
       const dir = path.dirname(ffmpegPath);
       try {
@@ -133,7 +126,6 @@ class DebugLogger {
       }
     }
 
-    // Check all possible FFmpeg locations
     const possiblePaths = [
       ffmpegPath,
       ffmpegPath?.replace("app.asar", "app.asar.unpacked"),
@@ -154,7 +146,7 @@ class DebugLogger {
       exists: fs.existsSync(p),
     }));
 
-    this.log(`🎬 FFmpeg Debug - ${context}`, debugInfo);
+    this.logEvent("ffmpeg", context, debugInfo, "debug");
   }
 
   logAudioData(context, audioBlob) {
@@ -169,7 +161,6 @@ class DebugLogger {
 
     if (audioBlob instanceof ArrayBuffer) {
       audioInfo.byteLength = audioBlob.byteLength;
-      // Check first few bytes
       const view = new Uint8Array(
         audioBlob,
         0,
@@ -186,13 +177,13 @@ class DebugLogger {
         .join(" ");
     }
 
-    this.log("🔊 Audio Data Debug", audioInfo);
+    this.logEvent("audio", context, audioInfo, "debug");
   }
 
   logProcessStart(command, args, options = {}) {
     if (!this.debugMode) return;
 
-    this.log("🚀 Starting process", {
+    this.logEvent("process", "start", {
       command,
       args,
       cwd: options.cwd || process.cwd(),
@@ -210,27 +201,21 @@ class DebugLogger {
 
     const output = data.toString().trim();
     if (output) {
-      this.log(`📝 ${processName} ${type}:`, output);
+      this.logEvent("process", `${processName}-${type}`, { output }, "debug");
     }
   }
 
   logWhisperPipeline(stage, details) {
-    if (!this.debugMode) return;
-
-    this.log(`🎙️ Whisper Pipeline - ${stage}`, details);
+    this.logEvent("whisper", stage, details, "debug");
   }
 
-  getLogPath() {
-    return this.logFile;
-  }
-
-  isEnabled() {
-    return this.debugMode;
+  error(channel, event, details = {}) {
+    this.logEvent(channel, event, details, "error");
   }
 
   close() {
     if (this.logStream) {
-      this.log("📝 Debug logger closing");
+      this.logEvent("system", "debug-disabled");
       this.logStream.end();
       this.logStream = null;
     }
@@ -246,7 +231,6 @@ class DebugLogger {
   }
 }
 
-// Singleton instance
 const debugLogger = new DebugLogger();
 
 module.exports = debugLogger;

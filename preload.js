@@ -73,6 +73,17 @@ contextBridge.exposeInMainWorld("electronAPI", {
   // Debug logging for reasoning pipeline
   logReasoning: (stage, details) => 
     ipcRenderer.invoke("log-reasoning", stage, details),
+  logDebugEvent: (channel, event, details, level) =>
+    ipcRenderer.invoke("debug-log", {
+      channel,
+      event,
+      details,
+      level,
+    }),
+  getDebugMode: async () => {
+    const result = await ipcRenderer.invoke("get-debug-mode");
+    return Boolean(result?.enabled);
+  },
   
   // Remove all listeners for a channel
   removeAllListeners: (channel) => {

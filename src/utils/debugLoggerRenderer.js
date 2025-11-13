@@ -1,39 +1,47 @@
-// Shared debug logger for renderer process
-const createDebugLogger = (prefix = "REASONING") => {
+const createDebugLogger = (channel = "renderer") => {
   return {
-    isDebugMode: null, // Cache debug mode status
-    
-    async checkDebugMode() {
-      if (this.isDebugMode === null && typeof window !== 'undefined' && window.electronAPI?.getDebugMode) {
-        try {
-          this.isDebugMode = await window.electronAPI.getDebugMode();
-        } catch {
+    isDebugMode: null,
+
+    async ensureDebugMode() {
+      if (this.isDebugMode === null) {
+        if (typeof window !== "undefined" && window.electronAPI?.getDebugMode) {
+          try {
+            this.isDebugMode = await window.electronAPI.getDebugMode();
+          } catch {
+            this.isDebugMode = false;
+          }
+        } else {
           this.isDebugMode = false;
         }
       }
       return this.isDebugMode || false;
     },
-    
-    async logReasoning(stage, details) {
-      // Only log if debug mode is enabled
-      const debugEnabled = await this.checkDebugMode();
-      if (!debugEnabled) return;
-      
-      if (typeof window !== 'undefined' && window.electronAPI?.logReasoning) {
+
+    async log(event, details = {}, level = "debug") {
+      const enabled = await this.ensureDebugMode();
+      if (!enabled) return;
+
+      if (
+        typeof window !== "undefined" &&
+        window.electronAPI?.logDebugEvent
+      ) {
         try {
-          await window.electronAPI.logReasoning(stage, details);
+          await window.electronAPI.logDebugEvent(channel, event, details, level);
         } catch (error) {
-          console.error('Failed to log reasoning:', error);
+          console.error("Failed to send debug log:", error);
         }
       } else {
-        // Fallback to console if IPC not available
-        console.log(`🤖 [${prefix} ${stage}]`, details);
+        console.log(`[${channel}] ${event}`, details);
       }
     },
-    
+
+    async logReasoning(stage, details) {
+      await this.log(stage, details, "debug");
+    },
+
     clearCache() {
       this.isDebugMode = null;
-    }
+    },
   };
 };
 

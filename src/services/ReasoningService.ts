@@ -2,19 +2,9 @@ import { BaseReasoningService, ReasoningConfig } from "./BaseReasoningService";
 import { SecureCache } from "../utils/SecureCache";
 import { withRetry, createApiRetryStrategy } from "../utils/retry";
 import { API_ENDPOINTS, TOKEN_LIMITS } from "../config/constants";
+import createDebugLogger from "../utils/debugLoggerRenderer";
 
-const debugLogger =
-  typeof window !== "undefined" && window.electronAPI
-    ? {
-        logReasoning: (stage: string, details: any) => {
-          window.electronAPI.logReasoning?.(stage, details).catch(() => {});
-        },
-      }
-    : {
-        logReasoning: (stage: string, details: any) => {
-          console.log(`[REASONING ${stage}]`, details);
-        },
-      };
+const debugLogger = createDebugLogger("reasoning");
 
 export const DEFAULT_PROMPTS = {
   agent: `You are {{agentName}}, a helpful AI assistant. Process and improve the following text, removing any reference to your name from the output:\n\n{{text}}\n\nImproved text:`,
@@ -151,7 +141,7 @@ class ReasoningService extends BaseReasoningService {
 
       const requestBody = this.buildRequestBody(text, modelId, agentName, config);
 
-      debugLogger.logReasoning("GROQ_REQUEST", {
+      void debugLogger.log("GROQ_REQUEST", {
         model: requestBody.model,
         maxTokens: requestBody.max_tokens,
         temperature: requestBody.temperature,
@@ -183,7 +173,7 @@ class ReasoningService extends BaseReasoningService {
         createApiRetryStrategy()
       );
 
-      debugLogger.logReasoning("GROQ_RESPONSE_RECEIVED", {
+      void debugLogger.log("GROQ_RESPONSE_RECEIVED", {
         model: requestBody.model,
         hasChoices: Array.isArray(response?.choices),
         hasOutput: Array.isArray(response?.output),
@@ -192,7 +182,7 @@ class ReasoningService extends BaseReasoningService {
       const cleaned = this.extractResponseText(response);
 
       if (!cleaned) {
-        debugLogger.logReasoning("GROQ_EMPTY_RESPONSE", {
+        void debugLogger.log("GROQ_EMPTY_RESPONSE", {
           model: requestBody.model,
         });
         throw new Error("Groq API returned an empty response");
@@ -200,7 +190,7 @@ class ReasoningService extends BaseReasoningService {
 
       return cleaned;
     } catch (error) {
-      debugLogger.logReasoning("GROQ_ERROR", {
+      void debugLogger.log("GROQ_ERROR", {
         error: (error as Error).message,
       });
       throw error;

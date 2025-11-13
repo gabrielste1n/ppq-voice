@@ -1,6 +1,7 @@
 const { Tray, Menu, nativeImage, app } = require("electron");
 const path = require("path");
 const fs = require("fs");
+const debugLogger = require("./debugLogger");
 
 class TrayManager {
   constructor() {
@@ -105,9 +106,11 @@ class TrayManager {
         return;
       }
 
-      console.error("No control panel callback available");
+      debugLogger.error("tray", "no-control-panel-callback");
     } catch (error) {
-      console.error("Failed to open control panel:", error);
+      debugLogger.error("tray", "open-control-panel-failed", {
+        error: error.message,
+      });
     }
   }
 
@@ -117,7 +120,7 @@ class TrayManager {
     try {
       const trayIcon = await this.loadTrayIcon();
       if (!trayIcon || trayIcon.isEmpty()) {
-        console.error("Failed to load tray icon");
+        debugLogger.error("tray", "icon-load-failed");
         return;
       }
 
@@ -130,7 +133,9 @@ class TrayManager {
       this.updateTrayMenu();
       this.setupTrayEventHandlers();
     } catch (error) {
-      console.error("Error creating tray icon:", error.message);
+      debugLogger.error("tray", "create-tray-failed", {
+        error: error.message,
+      });
     }
   }
 
@@ -192,16 +197,21 @@ class TrayManager {
             if (platform === "darwin") {
               icon.setTemplateImage(true);
             }
-            console.log("Using tray icon:", testPath);
+            debugLogger.logEvent("tray", "icon-loaded", { path: testPath });
             return icon;
           }
         }
       } catch (error) {
-        console.error("Error checking tray icon path:", testPath, error.message);
+        debugLogger.error("tray", "icon-path-error", {
+          path: testPath,
+          error: error.message
+        });
       }
     }
 
-    console.error("Could not find tray icon in any expected location");
+    debugLogger.error("tray", "icon-not-found", {
+      message: "Could not find tray icon in any expected location"
+    });
     return this.createFallbackIcon();
   }
 
@@ -219,11 +229,15 @@ class TrayManager {
 
       const buffer = canvas.toBuffer("image/png");
       const fallbackIcon = nativeImage.createFromBuffer(buffer);
-      console.log("✅ Created fallback tray icon");
+      debugLogger.logEvent("tray", "fallback-icon-created", {
+        method: "canvas"
+      });
       return fallbackIcon;
     } catch (fallbackError) {
-      console.warn("Canvas not available, creating minimal fallback icon");
-      // Create a minimal 16x16 black square PNG as fallback
+      debugLogger.logEvent("tray", "fallback-icon-created", {
+        method: "minimal",
+        reason: "Canvas not available"
+      });
       const pngData = Buffer.from([
         0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d,
         0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x10,
@@ -234,7 +248,6 @@ class TrayManager {
       ]);
 
       const fallbackIcon = nativeImage.createFromBuffer(pngData);
-      console.log("✅ Created minimal fallback tray icon");
       return fallbackIcon;
     }
   }
@@ -265,7 +278,9 @@ class TrayManager {
       {
         label: "Quit PPQ Voice",
         click: () => {
-          console.log("Quitting app via tray menu");
+          debugLogger.logEvent("tray", "quit-requested", {
+            origin: "tray-menu"
+          });
           app.quit();
         },
       },
@@ -299,7 +314,7 @@ class TrayManager {
     }
 
     this.tray.on("destroyed", () => {
-      console.log("Tray icon destroyed");
+      debugLogger.logEvent("tray", "icon-destroyed");
       this.tray = null;
     });
   }

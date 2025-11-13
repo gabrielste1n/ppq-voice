@@ -1,58 +1,45 @@
 const { clipboard } = require("electron");
 const { spawn } = require("child_process");
+const debugLogger = require("./debugLogger");
 
 class ClipboardManager {
   constructor() {
     // Initialize clipboard manager
   }
 
-  // Safe logging method - only log in development
-  safeLog(...args) {
-    if (process.env.NODE_ENV === "development") {
-      try {
-        console.log(...args);
-      } catch (error) {
-        // Silently ignore EPIPE errors in logging
-        if (error.code !== "EPIPE") {
-          process.stderr.write(`Log error: ${error.message}\n`);
-        }
-      }
-    }
+  safeLog(event, details = {}) {
+    debugLogger.logEvent("clipboard", event, details, "debug");
   }
 
   async pasteText(text) {
     try {
       // Save original clipboard content first
       const originalClipboard = clipboard.readText();
-      this.safeLog(
-        "💾 Saved original clipboard content:",
-        originalClipboard.substring(0, 50) + "..."
-      );
+      this.safeLog("original-buffered", {
+        preview: originalClipboard.substring(0, 50),
+        length: originalClipboard.length,
+      });
 
       // Copy text to clipboard first - this always works
       clipboard.writeText(text);
-      this.safeLog(
-        "📋 Text copied to clipboard:",
-        text.substring(0, 50) + "..."
-      );
+      this.safeLog("text-copied", {
+        preview: text.substring(0, 50),
+        length: text.length,
+      });
 
       if (process.platform === "darwin") {
         // Check accessibility permissions first
-        this.safeLog(
-          "🔍 Checking accessibility permissions for paste operation..."
-        );
+        this.safeLog("accessibility-check");
         const hasPermissions = await this.checkAccessibilityPermissions();
 
         if (!hasPermissions) {
-          this.safeLog(
-            "⚠️ No accessibility permissions - text copied to clipboard only"
-          );
+          this.safeLog("accessibility-missing");
           const errorMsg =
             "Accessibility permissions required for automatic pasting. Text has been copied to clipboard - please paste manually with Cmd+V.";
           throw new Error(errorMsg);
         }
 
-        this.safeLog("✅ Permissions granted, attempting to paste...");
+        this.safeLog("accessibility-ok");
         return await this.pasteMacOS(originalClipboard);
       } else if (process.platform === "win32") {
         return await this.pasteWindows(originalClipboard);
@@ -89,10 +76,10 @@ class ClipboardManager {
           pasteProcess.removeAllListeners();
 
           if (code === 0) {
-            this.safeLog("✅ Text pasted successfully via Cmd+V simulation");
+            this.safeLog("paste-success");
             setTimeout(() => {
               clipboard.writeText(originalClipboard);
-              this.safeLog("🔄 Original clipboard content restored");
+              this.safeLog("clipboard-restored");
             }, 100);
             resolve();
           } else {

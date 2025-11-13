@@ -3,6 +3,7 @@ const path = require("path");
 const fs = require("fs");
 const os = require("os");
 const { app } = require("electron");
+const debugLogger = require("./debugLogger");
 
 class DatabaseManager {
   constructor() {
@@ -30,9 +31,16 @@ class DatabaseManager {
         )
       `);
 
+      debugLogger.logEvent("database", "initialized", {
+        dbFile: dbFileName,
+        dbPath,
+      });
+
       return true;
     } catch (error) {
-      console.error("Database initialization failed:", error.message);
+      debugLogger.error("database", "init-failed", {
+        error: error.message,
+      });
       throw error;
     }
   }
@@ -51,13 +59,20 @@ class DatabaseManager {
         .prepare("SELECT * FROM transcriptions WHERE id = ?")
         .get(result.lastInsertRowid);
 
+      debugLogger.logEvent("database", "transcription-saved", {
+        id: result.lastInsertRowid,
+        textLength: content.length,
+      });
+
       return {
         id: result.lastInsertRowid,
         success: true,
         transcription: inserted,
       };
     } catch (error) {
-      console.error("Error saving transcription:", error.message);
+      debugLogger.error("database", "save-failed", {
+        error: error.message,
+      });
       throw error;
     }
   }
@@ -71,9 +86,15 @@ class DatabaseManager {
         "SELECT * FROM transcriptions ORDER BY timestamp DESC LIMIT ?"
       );
       const transcriptions = stmt.all(limit);
+      debugLogger.logEvent("database", "transcriptions-loaded", {
+        limit,
+        resultCount: transcriptions.length,
+      });
       return transcriptions;
     } catch (error) {
-      console.error("Error getting transcriptions:", error.message);
+      debugLogger.error("database", "load-failed", {
+        error: error.message,
+      });
       throw error;
     }
   }
@@ -85,9 +106,14 @@ class DatabaseManager {
       }
       const stmt = this.db.prepare("DELETE FROM transcriptions");
       const result = stmt.run();
+      debugLogger.logEvent("database", "transcriptions-cleared", {
+        cleared: result.changes,
+      });
       return { cleared: result.changes, success: true };
     } catch (error) {
-      console.error("Error clearing transcriptions:", error.message);
+      debugLogger.error("database", "clear-failed", {
+        error: error.message,
+      });
       throw error;
     }
   }
@@ -99,18 +125,22 @@ class DatabaseManager {
       }
       const stmt = this.db.prepare("DELETE FROM transcriptions WHERE id = ?");
       const result = stmt.run(id);
-      console.log(
-        `🗑️ Deleted transcription ${id}, affected rows: ${result.changes}`
-      );
+      debugLogger.logEvent("database", "transcription-deleted", {
+        id,
+        affectedRows: result.changes,
+      });
       return { success: result.changes > 0, id };
     } catch (error) {
-      console.error("❌ Error deleting transcription:", error);
+      debugLogger.error("database", "delete-failed", {
+        id,
+        error: error.message,
+      });
       throw error;
     }
   }
 
   cleanup() {
-    console.log("Starting database cleanup...");
+    debugLogger.logEvent("database", "cleanup-start");
     try {
       const dbPath = path.join(
         app.getPath("userData"),
@@ -120,10 +150,14 @@ class DatabaseManager {
       );
       if (fs.existsSync(dbPath)) {
         fs.unlinkSync(dbPath);
-        console.log("✅ Database file deleted:", dbPath);
+        debugLogger.logEvent("database", "cleanup-complete", {
+          dbPath,
+        });
       }
     } catch (error) {
-      console.error("❌ Error deleting database file:", error);
+      debugLogger.error("database", "cleanup-failed", {
+        error: error.message,
+      });
     }
   }
 }

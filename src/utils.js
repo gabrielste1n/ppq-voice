@@ -2,12 +2,12 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 const { app } = require("electron");
+const debugLogger = require("./helpers/debugLogger");
 
 class AppUtils {
   static cleanup(mainWindow) {
-    console.log("Starting cleanup process...");
+    debugLogger.logEvent("cleanup", "process-start");
 
-    // Database file deletion
     try {
       const dbPath = path.join(
         app.getPath("userData"),
@@ -17,41 +17,46 @@ class AppUtils {
       );
       if (fs.existsSync(dbPath)) {
         fs.unlinkSync(dbPath);
-        console.log("✅ Database file deleted:", dbPath);
+        debugLogger.logEvent("cleanup", "database-deleted", { path: dbPath });
       }
     } catch (error) {
-      console.error("❌ Error deleting database file:", error);
+      debugLogger.error("cleanup", "database-delete-error", {
+        error: error.message,
+        stack: error.stack
+      });
     }
 
-    // Local storage clearing
     if (mainWindow && mainWindow.webContents) {
       mainWindow.webContents
         .executeJavaScript("localStorage.clear()")
         .then(() => {
-          console.log("✅ Local storage cleared");
+          debugLogger.logEvent("cleanup", "local-storage-cleared");
         })
         .catch((error) => {
-          console.error("❌ Error clearing local storage:", error);
+          debugLogger.error("cleanup", "local-storage-error", {
+            error: error.message
+          });
         });
     }
 
-    // Permissions instruction
-    console.log(
-      "ℹ️ Please manually remove accessibility and microphone permissions via System Preferences if needed."
-    );
+    debugLogger.logEvent("cleanup", "permissions-reminder", {
+      message: "Manually remove accessibility and microphone permissions if needed"
+    });
 
-    // Env file deletion
     try {
       const envPath = path.join(app.getPath("userData"), ".env");
       if (fs.existsSync(envPath)) {
         fs.unlinkSync(envPath);
-        console.log("✅ .env file deleted:", envPath);
+        debugLogger.logEvent("cleanup", "env-file-deleted", { path: envPath });
       }
     } catch (error) {
-      console.error("❌ Error deleting .env file:", error);
+      debugLogger.error("cleanup", "env-file-delete-error", {
+        error: error.message,
+        stack: error.stack
+      });
     }
 
-    console.log("Cleanup process completed.");
+    debugLogger.logEvent("cleanup", "process-completed");
   }
 }
 

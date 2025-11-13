@@ -1,21 +1,8 @@
 import ReasoningService from "../services/ReasoningService";
 import { API_ENDPOINTS } from "../config/constants";
+import createDebugLogger from "../utils/debugLoggerRenderer";
 
-// Debug logger for renderer process
-const debugLogger = {
-  logReasoning: async (stage, details) => {
-    if (window.electronAPI?.logReasoning) {
-      try {
-        await window.electronAPI.logReasoning(stage, details);
-      } catch (error) {
-        console.error('Failed to log reasoning:', error);
-      }
-    } else {
-      // Fallback to console if IPC not available
-      console.log(`🤖 [REASONING ${stage}]`, details);
-    }
-  }
-};
+const debugLogger = createDebugLogger("audio");
 
 
 class AudioManager {
@@ -30,7 +17,6 @@ class AudioManager {
     this.cachedApiKey = null; // Cache API key
   }
 
-  // Set callback functions
   setCallbacks({ onStateChange, onError, onTranscriptionComplete }) {
     this.onStateChange = onStateChange;
     this.onError = onError;
@@ -65,7 +51,6 @@ class AudioManager {
         
         await this.processAudio(audioBlob);
 
-        // Clean up stream
         stream.getTracks().forEach((track) => track.stop());
       };
 
@@ -75,8 +60,6 @@ class AudioManager {
 
       return true;
     } catch (error) {
-      
-      // Provide more specific error messages
       let errorTitle = "Recording Error";
       let errorDescription = `Failed to access microphone: ${error.message}`;
       
@@ -102,7 +85,6 @@ class AudioManager {
   stopRecording() {
     if (this.mediaRecorder && this.isRecording) {
       this.mediaRecorder.stop();
-      // State change will be handled in onstop callback
       return true;
     }
     return false;
@@ -170,7 +152,6 @@ class AudioManager {
     return apiKey;
   }
 
-  // Convert audio to optimal format for API (reduces upload time)
   async optimizeAudio(audioBlob) {
     return new Promise((resolve) => {
       const audioContext = new (window.AudioContext ||
@@ -182,7 +163,6 @@ class AudioManager {
           const arrayBuffer = reader.result;
           const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
 
-          // Convert to 16kHz mono for smaller size and faster upload
           const sampleRate = 16000;
           const channels = 1;
           const length = Math.floor(audioBuffer.duration * sampleRate);
@@ -199,11 +179,9 @@ class AudioManager {
 
           const renderedBuffer = await offlineContext.startRendering();
 
-          // Convert to WAV blob
           const wavBlob = this.audioBufferToWav(renderedBuffer);
           resolve(wavBlob);
         } catch (error) {
-          // If optimization fails, use original
           resolve(audioBlob);
         }
       };
@@ -213,7 +191,6 @@ class AudioManager {
     });
   }
 
-  // Convert AudioBuffer to WAV format
   audioBufferToWav(buffer) {
     const length = buffer.length;
     const arrayBuffer = new ArrayBuffer(44 + length * 2);
@@ -221,7 +198,6 @@ class AudioManager {
     const sampleRate = buffer.sampleRate;
     const channelData = buffer.getChannelData(0);
 
-    // WAV header
     const writeString = (offset, string) => {
       for (let i = 0; i < string.length; i++) {
         view.setUint8(offset + i, string.charCodeAt(i));
@@ -242,7 +218,6 @@ class AudioManager {
     writeString(36, "data");
     view.setUint32(40, length * 2, true);
 
-    // Convert samples to 16-bit PCM
     let offset = 44;
     for (let i = 0; i < length; i++) {
       const sample = Math.max(-1, Math.min(1, channelData[i]));
@@ -265,7 +240,7 @@ class AudioManager {
       ? (localStorage.getItem("agentName") || null)
       : null;
     
-    debugLogger.logReasoning("CALLING_REASONING_SERVICE", {
+    void debugLogger.log("CALLING_REASONING_SERVICE", {
       model,
       agentName,
       textLength: text.length
@@ -278,7 +253,7 @@ class AudioManager {
       
       const processingTime = Date.now() - startTime;
       
-      debugLogger.logReasoning("REASONING_SERVICE_COMPLETE", {
+      void debugLogger.log("REASONING_SERVICE_COMPLETE", {
         model,
         processingTimeMs: processingTime,
         resultLength: result.length,
@@ -289,7 +264,7 @@ class AudioManager {
     } catch (error) {
       const processingTime = Date.now() - startTime;
       
-      debugLogger.logReasoning("REASONING_SERVICE_ERROR", {
+      void debugLogger.log("REASONING_SERVICE_ERROR", {
         model,
         processingTimeMs: processingTime,
         error: error.message,
@@ -301,80 +276,71 @@ class AudioManager {
   }
 
   async isReasoningAvailable() {
-    // Check if we're in renderer process (has localStorage)
     if (typeof window !== 'undefined' && window.localStorage) {
       const storedValue = localStorage.getItem("useReasoningModel");
-      
-      // Debug log the actual stored value
-      debugLogger.logReasoning("REASONING_STORAGE_CHECK", {
+
+      void debugLogger.log("REASONING_STORAGE_CHECK", {
         storedValue,
         typeOfStoredValue: typeof storedValue,
         isTrue: storedValue === "true",
         isTruthy: !!storedValue && storedValue !== "false"
       });
-      
-      // Check for both "true" string and truthy values (but not "false")
+
       const useReasoning = storedValue === "true" || (!!storedValue && storedValue !== "false");
-      
+
       if (!useReasoning) return false;
-      
+
       try {
         const isAvailable = await ReasoningService.isAvailable();
-        
-        debugLogger.logReasoning("REASONING_AVAILABILITY", {
+
+        void debugLogger.log("REASONING_AVAILABILITY", {
           isAvailable,
           reasoningEnabled: useReasoning,
           finalDecision: useReasoning && isAvailable
         });
-        
+
         return isAvailable;
       } catch (error) {
-        debugLogger.logReasoning("REASONING_AVAILABILITY_ERROR", {
+        void debugLogger.log("REASONING_AVAILABILITY_ERROR", {
           error: error.message,
           stack: error.stack
         });
         return false;
       }
     }
-    // If not in renderer, reasoning is not available
     return false;
   }
 
   async processTranscription(text, source) {
-    
-    // Log incoming transcription
-    debugLogger.logReasoning("TRANSCRIPTION_RECEIVED", {
+    void debugLogger.log("TRANSCRIPTION_RECEIVED", {
       source,
       textLength: text.length,
       textPreview: text.substring(0, 100) + (text.length > 100 ? "..." : ""),
       timestamp: new Date().toISOString()
     });
-    
-    // Check if reasoning should handle cleanup
+
     const useReasoning = await this.isReasoningAvailable();
-    
-    // Safe localStorage access
-    const reasoningModel = (typeof window !== 'undefined' && window.localStorage) 
-      ? (localStorage.getItem("reasoningModel") || "llama-3.1-8b-instant") 
+
+    const reasoningModel = (typeof window !== 'undefined' && window.localStorage)
+      ? (localStorage.getItem("reasoningModel") || "llama-3.1-8b-instant")
       : "llama-3.1-8b-instant";
     const reasoningProvider = "groq";
     const agentName = (typeof window !== 'undefined' && window.localStorage)
       ? (localStorage.getItem("agentName") || null)
       : null;
-    
-    debugLogger.logReasoning("REASONING_CHECK", {
+
+    void debugLogger.log("REASONING_CHECK", {
       useReasoning,
       reasoningModel,
       reasoningProvider,
       agentName
     });
-    
+
     if (useReasoning) {
       try {
-        // Minimal cleanup for reasoning models
         const preparedText = AudioManager.cleanTranscriptionForAPI(text);
         
-        debugLogger.logReasoning("SENDING_TO_REASONING", {
+        void debugLogger.log("SENDING_TO_REASONING", {
           preparedTextLength: preparedText.length,
           model: reasoningModel,
           provider: reasoningProvider
@@ -382,7 +348,7 @@ class AudioManager {
         
         const result = await this.processWithReasoningModel(preparedText);
         
-        debugLogger.logReasoning("REASONING_SUCCESS", {
+        void debugLogger.log("REASONING_SUCCESS", {
           resultLength: result.length,
           resultPreview: result.substring(0, 100) + (result.length > 100 ? "..." : ""),
           processingTime: new Date().toISOString()
@@ -390,27 +356,24 @@ class AudioManager {
         
         return result;
       } catch (error) {
-        debugLogger.logReasoning("REASONING_FAILED", {
+        void debugLogger.log("REASONING_FAILED", {
+          source,
           error: error.message,
           stack: error.stack,
           fallbackToCleanup: true
         });
-        console.error(`Reasoning failed (${source}):`, error.message);
-        // Fall back to standard cleanup
       }
     }
-    
-    debugLogger.logReasoning("USING_STANDARD_CLEANUP", {
+
+    void debugLogger.log("USING_STANDARD_CLEANUP", {
       reason: useReasoning ? "Reasoning failed" : "Reasoning not enabled"
     });
-    
-    // Standard cleanup when reasoning is unavailable or fails
+
     return AudioManager.cleanTranscription(text);
   }
 
   async processWithGroqAPI(audioBlob) {
     try {
-      // Parallel: get API key (cached) and optimize audio
       const [apiKey, optimizedAudio] = await Promise.all([
         this.getAPIKey(),
         this.optimizeAudio(audioBlob),
@@ -419,8 +382,6 @@ class AudioManager {
       const formData = new FormData();
       formData.append("file", optimizedAudio, "audio.wav");
       formData.append("model", "whisper-large-v3");
-
-      // Add language hint if set (improves processing speed)
       const language = localStorage.getItem("preferredLanguage");
       if (language && language !== "auto") {
         formData.append("language", language);

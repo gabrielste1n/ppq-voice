@@ -2,23 +2,32 @@ const path = require("path");
 const fs = require("fs");
 const os = require("os");
 
-// Clean build directories
-console.log("🧹 Cleaning build directories...");
+const DEBUG = process.env.PPQVOICE_DEBUG === "true" || process.argv.includes("--debug");
+
+function log(message, ...args) {
+  if (DEBUG) {
+    console.log(message, ...args);
+  }
+}
+
+function error(message, ...args) {
+  console.error(message, ...args);
+}
+
+log("Cleaning build directories...");
 const dirsToClean = ["dist/", "src/dist/", "node_modules/.cache/"];
 
 dirsToClean.forEach((dir) => {
   if (fs.existsSync(dir)) {
     fs.rmSync(dir, { recursive: true, force: true });
-    console.log(`✅ Cleaned: ${dir}`);
+    log(`Cleaned: ${dir}`);
   } else {
-    console.log(`ℹ️ Directory not found: ${dir}`);
+    log(`Directory not found: ${dir}`);
   }
 });
 
-// Clean development database
-console.log("🗄️ Cleaning development database...");
+log("Cleaning development database...");
 try {
-  // Use the same logic as the database.js file to determine the user data path
   const userDataPath =
     process.platform === "darwin"
       ? path.join(os.homedir(), "Library", "Application Support", "ppq-voice")
@@ -28,15 +37,14 @@ try {
 
   const devDbPath = path.join(userDataPath, "transcriptions-dev.db");
 
-  // Clean development database
   if (fs.existsSync(devDbPath)) {
     fs.unlinkSync(devDbPath);
-    console.log(`✅ Development database cleaned: ${devDbPath}`);
+    log(`Development database cleaned: ${devDbPath}`);
   } else {
-    console.log("ℹ️ No development database found to clean");
+    log("No development database found to clean");
   }
-} catch (error) {
-  console.error("❌ Error cleaning database files:", error.message);
+} catch (err) {
+  error("Error cleaning database files:", err.message);
 }
 
-console.log("✨ Cleanup completed successfully!");
+log("Cleanup completed successfully!");

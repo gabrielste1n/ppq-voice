@@ -3,6 +3,7 @@ const HotkeyManager = require("./hotkeyManager");
 const DragManager = require("./dragManager");
 const MenuManager = require("./menuManager");
 const DevServerManager = require("./devServerManager");
+const debugLogger = require("./debugLogger");
 const {
   MAIN_WINDOW_CONFIG,
   CONTROL_PANEL_CONFIG,
@@ -50,12 +51,11 @@ class WindowManager {
     this.mainWindow.webContents.on(
       "did-fail-load",
       async (_event, errorCode, errorDescription, validatedURL) => {
-        console.error(
-          "Failed to load main window:",
+        debugLogger.error("window", "main-window-load-failed", {
           errorCode,
           errorDescription,
-          validatedURL
-        );
+          validatedURL,
+        });
         if (
           process.env.NODE_ENV === "development" &&
           validatedURL.includes("localhost:5174")
@@ -64,7 +64,10 @@ class WindowManager {
           setTimeout(async () => {
             const isReady = await DevServerManager.waitForDevServer();
             if (isReady) {
-              console.log("Dev server ready, reloading...");
+              debugLogger.logEvent("window", "dev-server-ready", {
+                window: "main",
+                action: "reload",
+              });
               this.mainWindow.reload();
             }
           }, 2000);
@@ -181,7 +184,7 @@ class WindowManager {
     // Set up menu for control panel to ensure text input works
     MenuManager.setupControlPanelMenu(this.controlPanelWindow);
 
-    console.log("📱 Loading control panel content...");
+    debugLogger.logEvent("window", "load-control-panel");
     await this.loadControlPanel();
   }
 
@@ -190,9 +193,7 @@ class WindowManager {
     if (process.env.NODE_ENV === "development") {
       const isReady = await DevServerManager.waitForDevServer();
       if (!isReady) {
-        console.error(
-          "Dev server not ready for control panel, loading anyway..."
-        );
+        debugLogger.error("window", "dev-server-missing-control-panel");
       }
     }
     this.controlPanelWindow.loadURL(appUrl);
