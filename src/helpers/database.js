@@ -1,9 +1,7 @@
 const Database = require("better-sqlite3");
-const path = require("path");
 const fs = require("fs");
-const os = require("os");
-const { app } = require("electron");
 const debugLogger = require("./debugLogger");
+const DbPathManager = require("../utils/DbPathManager");
 
 class DatabaseManager {
   constructor() {
@@ -13,12 +11,8 @@ class DatabaseManager {
 
   initDatabase() {
     try {
-      const dbFileName =
-        process.env.NODE_ENV === "development"
-          ? "transcriptions-dev.db"
-          : "transcriptions.db";
-
-      const dbPath = path.join(app.getPath("userData"), dbFileName);
+      const dbPath = DbPathManager.getDbPath();
+      const dbFileName = DbPathManager.getDbFileName();
 
       this.db = new Database(dbPath);
 
@@ -142,12 +136,7 @@ class DatabaseManager {
   cleanup() {
     debugLogger.logEvent("database", "cleanup-start");
     try {
-      const dbPath = path.join(
-        app.getPath("userData"),
-        process.env.NODE_ENV === "development"
-          ? "transcriptions-dev.db"
-          : "transcriptions.db"
-      );
+      const dbPath = DbPathManager.getDbPath();
       if (fs.existsSync(dbPath)) {
         fs.unlinkSync(dbPath);
         debugLogger.logEvent("database", "cleanup-complete", {

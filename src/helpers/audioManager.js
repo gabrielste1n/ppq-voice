@@ -1,6 +1,11 @@
 import ReasoningService from "../services/ReasoningService";
 import { API_ENDPOINTS } from "../config/constants";
 import createDebugLogger from "../utils/debugLoggerRenderer";
+import apiKeyManager from "../utils/ApiKeyManager";
+import StorageManager from "../utils/StorageManager";
+import { AppError, ErrorCodes } from "../utils/ErrorHandler";
+import { AUDIO_CONFIG } from "../config/audio";
+import { withRetry, createApiRetryStrategy } from "../utils/retry";
 
 const debugLogger = createDebugLogger("audio");
 
@@ -14,7 +19,6 @@ class AudioManager {
     this.onStateChange = null;
     this.onError = null;
     this.onTranscriptionComplete = null;
-    this.cachedApiKey = null; // Cache API key
   }
 
   setCallbacks({ onStateChange, onError, onTranscriptionComplete }) {
@@ -45,10 +49,15 @@ class AudioManager {
         this.onStateChange?.({ isRecording: false, isProcessing: true });
 
         const audioBlob = new Blob(this.audioChunks, { type: "audio/wav" });
-        
+
         if (audioBlob.size === 0) {
+          throw new AppError(
+            ErrorCodes.AUDIO_EMPTY,
+            "No audio was recorded",
+            { blobSize: audioBlob.size }
+          );
         }
-        
+
         await this.processAudio(audioBlob);
 
         stream.getTracks().forEach((track) => track.stop());
@@ -64,13 +73,13 @@ class AudioManager {
       let errorDescription = `Failed to access microphone: ${error.message}`;
       
       if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
-        errorTitle = "Microphone Access Denied";
+        errorTitle = ErrorCodes.PERMISSION_DENIED;
         errorDescription = "Please grant microphone permission in your system settings and try again.";
       } else if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
-        errorTitle = "No Microphone Found";
+        errorTitle = ErrorCodes.MICROPHONE_NOT_FOUND;
         errorDescription = "No microphone was detected. Please connect a microphone and try again.";
       } else if (error.name === "NotReadableError" || error.name === "TrackStartError") {
-        errorTitle = "Microphone In Use";
+        errorTitle = ErrorCodes.MICROPHONE_IN_USE;
         errorDescription = "The microphone is being used by another application. Please close other apps and try again.";
       }
       
@@ -125,31 +134,7 @@ class AudioManager {
   }
 
   async getAPIKey() {
-    if (this.cachedApiKey) {
-      return this.cachedApiKey;
-    }
-
-    let apiKey = await window.electronAPI?.getPPQKey?.();
-    if (
-      !apiKey ||
-      apiKey.trim() === "" ||
-      apiKey === "your_ppq_api_key_here"
-    ) {
-      apiKey = localStorage.getItem("ppqApiKey");
-    }
-
-    if (
-      !apiKey ||
-      apiKey.trim() === "" ||
-      apiKey === "your_ppq_api_key_here"
-    ) {
-      throw new Error(
-        "PPQ API key not found. Please add your key in the Control Panel."
-      );
-    }
-
-    this.cachedApiKey = apiKey;
-    return apiKey;
+    return await apiKeyManager.getApiKey();
   }
 
   async optimizeAudio(audioBlob) {
@@ -163,8 +148,8 @@ class AudioManager {
           const arrayBuffer = reader.result;
           const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
 
-          const sampleRate = 16000;
-          const channels = 1;
+          const sampleRate = AUDIO_CONFIG.SAMPLE_RATE;
+          const channels = AUDIO_CONFIG.MONO_CHANNELS;
           const length = Math.floor(audioBuffer.duration * sampleRate);
           const offlineContext = new OfflineAudioContext(
             channels,
@@ -193,7 +178,9 @@ class AudioManager {
 
   audioBufferToWav(buffer) {
     const length = buffer.length;
-    const arrayBuffer = new ArrayBuffer(44 + length * 2);
+    const arrayBuffer = new ArrayBuffer(
+      AUDIO_CONFIG.WAV_HEADER_SIZE + length * AUDIO_CONFIG.BYTES_PER_SAMPLE
+    );
     const view = new DataView(arrayBuffer);
     const sampleRate = buffer.sampleRate;
     const channelData = buffer.getChannelData(0);
@@ -218,7 +205,7 @@ class AudioManager {
     writeString(36, "data");
     view.setUint32(40, length * 2, true);
 
-    let offset = 44;
+    let offset = AUDIO_CONFIG.WAV_HEADER_SIZE;
     for (let i = 0; i < length; i++) {
       const sample = Math.max(-1, Math.min(1, channelData[i]));
       view.setInt16(
@@ -233,12 +220,8 @@ class AudioManager {
   }
 
   async processWithReasoningModel(text) {
-    const model = (typeof window !== 'undefined' && window.localStorage)
-      ? (localStorage.getItem("reasoningModel") || "llama-3.1-8b-instant")
-      : "llama-3.1-8b-instant";
-    const agentName = (typeof window !== 'undefined' && window.localStorage)
-      ? (localStorage.getItem("agentName") || null)
-      : null;
+    const model = StorageManager.getLocalStorageValue("reasoningModel", "llama-3.1-8b-instant");
+    const agentName = StorageManager.getLocalStorageValue("agentName", null);
     
     void debugLogger.log("CALLING_REASONING_SERVICE", {
       model,
@@ -276,39 +259,36 @@ class AudioManager {
   }
 
   async isReasoningAvailable() {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      const storedValue = localStorage.getItem("useReasoningModel");
+    const storedValue = StorageManager.getLocalStorageValue("useReasoningModel", null);
 
-      void debugLogger.log("REASONING_STORAGE_CHECK", {
-        storedValue,
-        typeOfStoredValue: typeof storedValue,
-        isTrue: storedValue === "true",
-        isTruthy: !!storedValue && storedValue !== "false"
+    void debugLogger.log("REASONING_STORAGE_CHECK", {
+      storedValue,
+      typeOfStoredValue: typeof storedValue,
+      isTrue: storedValue === "true",
+      isTruthy: !!storedValue && storedValue !== "false"
+    });
+
+    const useReasoning = storedValue === "true" || (!!storedValue && storedValue !== "false");
+
+    if (!useReasoning) return false;
+
+    try {
+      const isAvailable = await ReasoningService.isAvailable();
+
+      void debugLogger.log("REASONING_AVAILABILITY", {
+        isAvailable,
+        reasoningEnabled: useReasoning,
+        finalDecision: useReasoning && isAvailable
       });
 
-      const useReasoning = storedValue === "true" || (!!storedValue && storedValue !== "false");
-
-      if (!useReasoning) return false;
-
-      try {
-        const isAvailable = await ReasoningService.isAvailable();
-
-        void debugLogger.log("REASONING_AVAILABILITY", {
-          isAvailable,
-          reasoningEnabled: useReasoning,
-          finalDecision: useReasoning && isAvailable
-        });
-
-        return isAvailable;
-      } catch (error) {
-        void debugLogger.log("REASONING_AVAILABILITY_ERROR", {
-          error: error.message,
-          stack: error.stack
-        });
-        return false;
-      }
+      return isAvailable;
+    } catch (error) {
+      void debugLogger.log("REASONING_AVAILABILITY_ERROR", {
+        error: error.message,
+        stack: error.stack
+      });
+      return false;
     }
-    return false;
   }
 
   async processTranscription(text, source) {
@@ -321,13 +301,9 @@ class AudioManager {
 
     const useReasoning = await this.isReasoningAvailable();
 
-    const reasoningModel = (typeof window !== 'undefined' && window.localStorage)
-      ? (localStorage.getItem("reasoningModel") || "llama-3.1-8b-instant")
-      : "llama-3.1-8b-instant";
+    const reasoningModel = StorageManager.getLocalStorageValue("reasoningModel", "llama-3.1-8b-instant");
     const reasoningProvider = "groq";
-    const agentName = (typeof window !== 'undefined' && window.localStorage)
-      ? (localStorage.getItem("agentName") || null)
-      : null;
+    const agentName = StorageManager.getLocalStorageValue("agentName", null);
 
     void debugLogger.log("REASONING_CHECK", {
       useReasoning,
@@ -381,26 +357,33 @@ class AudioManager {
 
       const formData = new FormData();
       formData.append("file", optimizedAudio, "audio.wav");
-      formData.append("model", "whisper-large-v3");
-      const language = localStorage.getItem("preferredLanguage");
+      formData.append("model", AUDIO_CONFIG.TRANSCRIPTION_MODEL);
+      const language = StorageManager.getLocalStorageValue("preferredLanguage", "auto");
       if (language && language !== "auto") {
         formData.append("language", language);
       }
 
-      const response = await fetch(API_ENDPOINTS.GROQ_TRANSCRIPTION, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
+      const result = await withRetry(
+        async () => {
+          const response = await fetch(API_ENDPOINTS.GROQ_TRANSCRIPTION, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+            },
+            body: formData,
+          });
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            const error = new Error(`API Error: ${response.status} ${errorText}`);
+            error.response = response;
+            throw error;
+          }
+
+          return response.json();
         },
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`API Error: ${response.status} ${errorText}`);
-      }
-
-      const result = await response.json();
+        createApiRetryStrategy()
+      );
       
       if (result.text) {
         const text = await this.processTranscription(result.text, "groq");
@@ -410,6 +393,10 @@ class AudioManager {
         throw new Error("No text transcribed");
       }
     } catch (error) {
+      void debugLogger.log("TRANSCRIPTION_ERROR", {
+        error: error.message,
+        stack: error.stack
+      });
       throw error;
     }
   }

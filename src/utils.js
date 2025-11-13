@@ -1,20 +1,15 @@
 const fs = require("fs");
 const path = require("path");
-const os = require("os");
 const { app } = require("electron");
 const debugLogger = require("./helpers/debugLogger");
+const DbPathManager = require("./utils/DbPathManager");
 
 class AppUtils {
   static cleanup(mainWindow) {
     debugLogger.logEvent("cleanup", "process-start");
 
     try {
-      const dbPath = path.join(
-        app.getPath("userData"),
-        process.env.NODE_ENV === "development"
-          ? "transcriptions-dev.db"
-          : "transcriptions.db"
-      );
+      const dbPath = DbPathManager.getDbPath();
       if (fs.existsSync(dbPath)) {
         fs.unlinkSync(dbPath);
         debugLogger.logEvent("cleanup", "database-deleted", { path: dbPath });

@@ -1,7 +1,7 @@
 const { app, globalShortcut, BrowserWindow, dialog } = require("electron");
 
 // Ensure macOS menus use the proper casing for the app name
-if (process.platform === "darwin" && app.getName() !== "PPQ Voice") {
+if (process.platform === "darwin" && app && app.getName() !== "PPQ Voice") {
   app.setName("PPQ Voice");
 }
 
@@ -20,7 +20,7 @@ process.on("unhandledRejection", (reason, promise) => {
   console.error("Unhandled Rejection at:", promise, "reason:", reason);
 });
 
-// Import helper modules
+// Import helper modules (but don't instantiate yet)
 const EnvironmentManager = require("./src/helpers/environment");
 const WindowManager = require("./src/helpers/windowManager");
 const DatabaseManager = require("./src/helpers/database");
@@ -30,54 +30,61 @@ const IPCHandlers = require("./src/helpers/ipcHandlers");
 const UpdateManager = require("./src/updater");
 const GlobeKeyManager = require("./src/helpers/globeKeyManager");
 
-// Initialize managers
-const environmentManager = new EnvironmentManager();
-const windowManager = new WindowManager();
-const hotkeyManager = windowManager.hotkeyManager;
-const databaseManager = new DatabaseManager();
-const clipboardManager = new ClipboardManager();
-const trayManager = new TrayManager();
-const updateManager = new UpdateManager();
-const globeKeyManager = new GlobeKeyManager();
+// Manager instances (will be initialized after app is ready)
+let environmentManager;
+let windowManager;
+let hotkeyManager;
+let databaseManager;
+let clipboardManager;
+let trayManager;
+let updateManager;
+let globeKeyManager;
+let ipcHandlers;
 let globeKeyAlertShown = false;
-
-if (process.platform === "darwin") {
-  globeKeyManager.on("error", (error) => {
-    if (globeKeyAlertShown) {
-      return;
-    }
-    globeKeyAlertShown = true;
-
-    const detailLines = [
-      error?.message || "Unknown error occurred while starting the Globe listener.",
-      "The Globe key shortcut will remain disabled; existing keyboard shortcuts continue to work.",
-    ];
-
-    if (process.env.NODE_ENV === "development") {
-      detailLines.push("Run `npm run compile:globe` and rebuild the app to regenerate the listener binary.");
-    } else {
-      detailLines.push("Try reinstalling PPQ Voice or contact support if the issue persists.");
-    }
-
-    dialog.showMessageBox({
-      type: "warning",
-      title: "Globe Hotkey Unavailable",
-      message: "PPQ Voice could not activate the Globe key hotkey.",
-      detail: detailLines.join("\n\n"),
-    });
-  });
-}
-
-// Initialize IPC handlers with all managers
-const ipcHandlers = new IPCHandlers({
-  environmentManager,
-  databaseManager,
-  clipboardManager,
-  windowManager,
-});
 
 // Main application startup
 async function startApp() {
+  // Initialize all managers after app is ready
+  environmentManager = new EnvironmentManager();
+  windowManager = new WindowManager();
+  hotkeyManager = windowManager.hotkeyManager;
+  databaseManager = new DatabaseManager();
+  clipboardManager = new ClipboardManager();
+  trayManager = new TrayManager();
+  updateManager = new UpdateManager();
+  globeKeyManager = new GlobeKeyManager();
+
+  // Set up Globe key error handler (macOS only)
+  if (process.platform === "darwin") {
+    globeKeyManager.on("error", (error) => {
+      if (!globeKeyAlertShown) {
+        globeKeyAlertShown = true;
+        dialog.showMessageBox({
+          type: "warning",
+          title: "Globe Key Support",
+          message: "Globe Key Detection Unavailable",
+          detail:
+            "The Globe key (🌐) detection feature requires system accessibility permissions. " +
+            "You can still use keyboard shortcuts like the backtick (`) or Cmd+Shift+Space. " +
+            "\n\nTo enable Globe key support:\n" +
+            "1. Open System Settings → Privacy & Security → Accessibility\n" +
+            "2. Add PPQ Voice to the list\n" +
+            "3. Restart the app\n\n" +
+            `Technical details: ${error.message}`,
+          buttons: ["OK"],
+        });
+      }
+    });
+  }
+
+  // Initialize IPC handlers with all managers
+  ipcHandlers = new IPCHandlers({
+    environmentManager,
+    databaseManager,
+    clipboardManager,
+    windowManager,
+  });
+
   // In development, add a small delay to let Vite start properly
   if (process.env.NODE_ENV === "development") {
     await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -140,66 +147,78 @@ trayManager.setWindowManager(windowManager);
 }
 
 // App event handlers
-app.whenReady().then(() => {
-  // Hide dock icon on macOS for a cleaner experience
-  // The app will still show in the menu bar and command bar
-  if (process.platform === 'darwin' && app.dock) {
-    // Keep dock visible for now to maintain command bar access
-    // We can hide it later if needed: app.dock.hide()
+// Wait for app to be ready with retry logic
+function setupApp() {
+  if (!app || !app.whenReady) {
+    // App not ready yet, try again on next tick
+    setImmediate(setupApp);
+    return;
   }
-  
-  startApp();
-});
 
-app.on("window-all-closed", () => {
-  // Don't quit on macOS when all windows are closed
-  // The app should stay in the dock/menu bar
-  if (process.platform !== "darwin") {
-    app.quit();
-  }
-  // On macOS, keep the app running even without windows
-});
+  app.whenReady().then(() => {
+    // Hide dock icon on macOS for a cleaner experience
+    // The app will still show in the menu bar and command bar
+    if (process.platform === 'darwin' && app.dock) {
+      // Keep dock visible for now to maintain command bar access
+      // We can hide it later if needed: app.dock.hide()
+    }
 
-// Re-apply always-on-top when app becomes active
-app.on("browser-window-focus", (event, window) => {
-  // Only apply always-on-top to the dictation window, not the control panel
-  if (windowManager && windowManager.mainWindow && !windowManager.mainWindow.isDestroyed()) {
-    // Check if the focused window is the dictation window
-    if (window === windowManager.mainWindow) {
-      windowManager.enforceMainWindowOnTop();
-    }
-  }
-  
-  // Control panel doesn't need any special handling on focus
-  // It should behave like a normal window
-});
+    startApp();
+  });
 
-app.on("activate", () => {
-  // On macOS, re-create windows when dock icon is clicked
-  if (BrowserWindow.getAllWindows().length === 0) {
-    if (windowManager) {
-      windowManager.createMainWindow();
-      windowManager.createControlPanelWindow();
+  app.on("window-all-closed", () => {
+    // Don't quit on macOS when all windows are closed
+    // The app should stay in the dock/menu bar
+    if (process.platform !== "darwin") {
+      app.quit();
     }
-  } else {
-    // Show control panel when dock icon is clicked (most common user action)
-    if (windowManager && windowManager.controlPanelWindow && !windowManager.controlPanelWindow.isDestroyed()) {
-      windowManager.controlPanelWindow.show();
-      windowManager.controlPanelWindow.focus();
-    } else if (windowManager) {
-      // If control panel doesn't exist, create it
-      windowManager.createControlPanelWindow();
-    }
-    
-    // Ensure dictation panel maintains its always-on-top status
+    // On macOS, keep the app running even without windows
+  });
+
+  // Re-apply always-on-top when app becomes active
+  app.on("browser-window-focus", (event, window) => {
+    // Only apply always-on-top to the dictation window, not the control panel
     if (windowManager && windowManager.mainWindow && !windowManager.mainWindow.isDestroyed()) {
-      windowManager.enforceMainWindowOnTop();
+      // Check if the focused window is the dictation window
+      if (window === windowManager.mainWindow) {
+        windowManager.enforceMainWindowOnTop();
+      }
     }
-  }
-});
 
-app.on("will-quit", () => {
-  globalShortcut.unregisterAll();
-  globeKeyManager.stop();
-  updateManager.cleanup();
-});
+    // Control panel doesn't need any special handling on focus
+    // It should behave like a normal window
+  });
+
+  app.on("activate", () => {
+    // On macOS, re-create windows when dock icon is clicked
+    if (BrowserWindow.getAllWindows().length === 0) {
+      if (windowManager) {
+        windowManager.createMainWindow();
+        windowManager.createControlPanelWindow();
+      }
+    } else {
+      // Show control panel when dock icon is clicked (most common user action)
+      if (windowManager && windowManager.controlPanelWindow && !windowManager.controlPanelWindow.isDestroyed()) {
+        windowManager.controlPanelWindow.show();
+        windowManager.controlPanelWindow.focus();
+      } else if (windowManager) {
+        // If control panel doesn't exist, create it
+        windowManager.createControlPanelWindow();
+      }
+
+      // Ensure dictation panel maintains its always-on-top status
+      if (windowManager && windowManager.mainWindow && !windowManager.mainWindow.isDestroyed()) {
+        windowManager.enforceMainWindowOnTop();
+      }
+    }
+  });
+
+  app.on("will-quit", () => {
+    globalShortcut.unregisterAll();
+    if (globeKeyManager) globeKeyManager.stop();
+    if (updateManager) updateManager.cleanup();
+  });
+}
+
+// Start the app setup process
+setupApp();

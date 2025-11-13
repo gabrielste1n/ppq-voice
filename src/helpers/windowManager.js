@@ -138,6 +138,43 @@ class WindowManager {
     return await this.dragManager.stopWindowDrag();
   }
 
+  minimizeControlPanel() {
+    if (this.controlPanelWindow && !this.controlPanelWindow.isDestroyed()) {
+      this.controlPanelWindow.minimize();
+    }
+  }
+
+  maximizeControlPanel() {
+    if (this.controlPanelWindow && !this.controlPanelWindow.isDestroyed()) {
+      if (this.controlPanelWindow.isMaximized()) {
+        this.controlPanelWindow.unmaximize();
+      } else {
+        this.controlPanelWindow.maximize();
+      }
+    }
+  }
+
+  closeControlPanel() {
+    if (this.controlPanelWindow && !this.controlPanelWindow.isDestroyed()) {
+      this.controlPanelWindow.close();
+    }
+  }
+
+  isControlPanelMaximized() {
+    if (this.controlPanelWindow && !this.controlPanelWindow.isDestroyed()) {
+      return this.controlPanelWindow.isMaximized();
+    }
+    return false;
+  }
+
+  isMainWindowValid() {
+    return this.mainWindow && !this.mainWindow.isDestroyed();
+  }
+
+  isControlPanelValid() {
+    return this.controlPanelWindow && !this.controlPanelWindow.isDestroyed();
+  }
+
   async createControlPanelWindow() {
     if (this.controlPanelWindow && !this.controlPanelWindow.isDestroyed()) {
       if (this.controlPanelWindow.isMinimized()) {

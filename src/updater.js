@@ -1,4 +1,3 @@
-const { autoUpdater } = require("electron-updater");
 const { ipcMain } = require("electron");
 const debugLogger = require("./helpers/debugLogger");
 
@@ -14,8 +13,15 @@ class UpdateManager {
     this.installTimeout = null;
     this.ipcHandlers = [];
     this.eventListeners = [];
+    this.autoUpdater = null;
 
-    this.setupAutoUpdater();
+    // Delay autoUpdater initialization to avoid loading issues
+    setImmediate(() => {
+      const { autoUpdater } = require("electron-updater");
+      this.autoUpdater = autoUpdater;
+      this.setupAutoUpdater();
+    });
+
     this.setupIPCHandlers();
   }
 
@@ -29,15 +35,19 @@ class UpdateManager {
       return;
     }
 
-    autoUpdater.setFeedURL({
+    if (!this.autoUpdater) {
+      return;
+    }
+
+    this.autoUpdater.setFeedURL({
       provider: "github",
       owner: "HeroTools",
       repo: "ppq-voice",
       private: false,
     });
 
-    autoUpdater.autoDownload = false;
-    autoUpdater.autoInstallOnAppQuit = true;
+    this.autoUpdater.autoDownload = false;
+    this.autoUpdater.autoInstallOnAppQuit = true;
 
     this.setupEventHandlers();
   }
@@ -101,7 +111,7 @@ class UpdateManager {
     };
 
     Object.entries(handlers).forEach(([event, handler]) => {
-      autoUpdater.on(event, handler);
+      this.autoUpdater.on(event, handler);
       this.eventListeners.push({ event, handler });
     });
   }
@@ -129,7 +139,7 @@ class UpdateManager {
             }
 
             debugLogger.logEvent("updater", "checking-for-updates");
-            const result = await autoUpdater.checkForUpdates();
+            const result = await this.autoUpdater.checkForUpdates();
 
             if (result && result.updateInfo) {
               debugLogger.logEvent("updater", "update-available", {
@@ -186,7 +196,7 @@ class UpdateManager {
 
             this.isDownloading = true;
             debugLogger.logEvent("updater", "starting-download");
-            await autoUpdater.downloadUpdate();
+            await this.autoUpdater.downloadUpdate();
             debugLogger.logEvent("updater", "download-initiated");
 
             return { success: true, message: "Update download started" };
@@ -236,7 +246,7 @@ class UpdateManager {
 
               const { app } = require("electron");
               app.emit("before-quit");
-              autoUpdater.quitAndInstall(false, true);
+              this.autoUpdater.quitAndInstall(false, true);
 
               debugLogger.logEvent("updater", "quit-and-install-called");
             }, 100);
@@ -313,7 +323,7 @@ class UpdateManager {
     if (process.env.NODE_ENV !== "development") {
       setTimeout(() => {
         debugLogger.logEvent("updater", "startup-check");
-        autoUpdater.checkForUpdates().catch(err => {
+        this.autoUpdater.checkForUpdates().catch(err => {
           debugLogger.error("updater", "startup-check-failed", {
             error: err.message,
             stack: err.stack
@@ -330,7 +340,7 @@ class UpdateManager {
     }
 
     this.eventListeners.forEach(({ event, handler }) => {
-      autoUpdater.removeListener(event, handler);
+      this.autoUpdater.removeListener(event, handler);
     });
     this.eventListeners = [];
 

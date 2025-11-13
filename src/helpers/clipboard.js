@@ -1,12 +1,10 @@
 const { clipboard } = require("electron");
 const { spawn } = require("child_process");
 const debugLogger = require("./debugLogger");
+const { PlatformDetector } = require("../utils/PlatformDetector");
+const { TIMING_CONFIG } = require("../config/timing");
 
 class ClipboardManager {
-  constructor() {
-    // Initialize clipboard manager
-  }
-
   safeLog(event, details = {}) {
     debugLogger.logEvent("clipboard", event, details, "debug");
   }
@@ -27,7 +25,7 @@ class ClipboardManager {
         length: text.length,
       });
 
-      if (process.platform === "darwin") {
+      if (PlatformDetector.isMacOS()) {
         // Check accessibility permissions first
         this.safeLog("accessibility-check");
         const hasPermissions = await this.checkAccessibilityPermissions();
@@ -41,12 +39,16 @@ class ClipboardManager {
 
         this.safeLog("accessibility-ok");
         return await this.pasteMacOS(originalClipboard);
-      } else if (process.platform === "win32") {
+      } else if (PlatformDetector.isWindows()) {
         return await this.pasteWindows(originalClipboard);
       } else {
         return await this.pasteLinux(originalClipboard);
       }
     } catch (error) {
+      this.safeLog("paste-error", {
+        error: error.message,
+        platform: PlatformDetector.current
+      });
       throw error;
     }
   }
@@ -80,7 +82,7 @@ class ClipboardManager {
             setTimeout(() => {
               clipboard.writeText(originalClipboard);
               this.safeLog("clipboard-restored");
-            }, 100);
+            }, TIMING_CONFIG.CLIPBOARD_RESTORE_DELAY);
             resolve();
           } else {
             const errorMsg = `Paste failed (code ${code}). Text is copied to clipboard - please paste manually with Cmd+V.`;
@@ -103,8 +105,8 @@ class ClipboardManager {
           const errorMsg =
             "Paste operation timed out. Text is copied to clipboard - please paste manually with Cmd+V.";
           reject(new Error(errorMsg));
-        }, 3000);
-      }, 100);
+        }, TIMING_CONFIG.PASTE_TIMEOUT);
+      }, TIMING_CONFIG.CLIPBOARD_PASTE_DELAY);
     });
   }
 
@@ -120,7 +122,7 @@ class ClipboardManager {
           // Text pasted successfully
           setTimeout(() => {
             clipboard.writeText(originalClipboard);
-          }, 100);
+          }, TIMING_CONFIG.CLIPBOARD_RESTORE_DELAY);
           resolve();
         } else {
           reject(
@@ -150,7 +152,7 @@ class ClipboardManager {
           // Text pasted successfully
           setTimeout(() => {
             clipboard.writeText(originalClipboard);
-          }, 100);
+          }, TIMING_CONFIG.CLIPBOARD_RESTORE_DELAY);
           resolve();
         } else {
           reject(
@@ -172,7 +174,7 @@ class ClipboardManager {
   }
 
   async checkAccessibilityPermissions() {
-    if (process.platform !== "darwin") return true;
+    if (!PlatformDetector.isMacOS()) return true;
 
     return new Promise((resolve) => {
       // Check accessibility permissions

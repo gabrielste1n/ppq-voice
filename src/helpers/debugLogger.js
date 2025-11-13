@@ -17,8 +17,27 @@ class DebugLogger {
       this.checkDebugFile();
     this.logFile = null;
     this.logStream = null;
+    this.initialized = false;
 
+    // Delay initialization if app is not ready yet
     if (this.debugMode) {
+      if (app && app.getPath) {
+        this.initializeLogging();
+      } else {
+        // Wait for app to be ready
+        setImmediate(() => {
+          if (app && app.getPath) {
+            this.initializeLogging();
+          }
+        });
+      }
+    }
+  }
+
+  initializeLogging() {
+    if (this.initialized) return;
+
+    try {
       const logsDir = path.join(app.getPath("userData"), "logs");
       if (!fs.existsSync(logsDir)) {
         fs.mkdirSync(logsDir, { recursive: true });
@@ -27,6 +46,7 @@ class DebugLogger {
       const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
       this.logFile = path.join(logsDir, `debug-${timestamp}.log`);
       this.logStream = fs.createWriteStream(this.logFile, { flags: "a" });
+      this.initialized = true;
 
       this.logEvent("system", "debug-enabled", {
         logFile: this.logFile,
@@ -38,6 +58,10 @@ class DebugLogger {
         resourcesPath: process.resourcesPath,
         environment: process.env.NODE_ENV,
       });
+    } catch (error) {
+      // If logging initialization fails, disable debug mode
+      this.debugMode = false;
+      console.error("Failed to initialize debug logging:", error.message);
     }
   }
 
@@ -223,6 +247,10 @@ class DebugLogger {
 
   checkDebugFile() {
     try {
+      // Return false if app is not ready yet
+      if (!app || !app.getPath) {
+        return false;
+      }
       const debugFilePath = path.join(app.getPath("userData"), "ENABLE_DEBUG");
       return fs.existsSync(debugFilePath);
     } catch (e) {

@@ -1,8 +1,8 @@
 import { BaseReasoningService, ReasoningConfig } from "./BaseReasoningService";
-import { SecureCache } from "../utils/SecureCache";
 import { withRetry, createApiRetryStrategy } from "../utils/retry";
 import { API_ENDPOINTS, TOKEN_LIMITS } from "../config/constants";
 import createDebugLogger from "../utils/debugLoggerRenderer";
+import apiKeyManager from "../utils/ApiKeyManager";
 
 const debugLogger = createDebugLogger("reasoning");
 
@@ -12,40 +12,17 @@ export const DEFAULT_PROMPTS = {
 };
 
 class ReasoningService extends BaseReasoningService {
-  private apiKeyCache: SecureCache<string>;
-  private cacheCleanupStop: (() => void) | undefined;
-
   constructor() {
     super();
-    this.apiKeyCache = new SecureCache();
-    this.cacheCleanupStop = this.apiKeyCache.startAutoCleanup();
-  }
-
-  private async getApiKey(forceRefresh = false): Promise<string | null> {
-    if (!forceRefresh) {
-      const cached = this.apiKeyCache.get("ppq");
-      if (cached) {
-        return cached;
-      }
-    }
-
-    if (typeof window === "undefined") {
-      return null;
-    }
-
-    const key = await window.electronAPI?.getPPQKey?.();
-    const trimmed = key?.trim();
-    if (trimmed) {
-      this.apiKeyCache.set("ppq", trimmed);
-      return trimmed;
-    }
-
-    return null;
   }
 
   async isAvailable(): Promise<boolean> {
-    const key = await this.getApiKey();
-    return Boolean(key);
+    try {
+      const key = await apiKeyManager.getApiKey();
+      return Boolean(key);
+    } catch {
+      return false;
+    }
   }
 
   private buildRequestBody(
@@ -134,10 +111,7 @@ class ReasoningService extends BaseReasoningService {
     this.isProcessing = true;
 
     try {
-      const apiKey = await this.getApiKey();
-      if (!apiKey) {
-        throw new Error("PPQ API key not configured");
-      }
+      const apiKey = await apiKeyManager.getApiKey();
 
       const requestBody = this.buildRequestBody(text, modelId, agentName, config);
 

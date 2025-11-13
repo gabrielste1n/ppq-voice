@@ -12,34 +12,20 @@ class IPCHandlers {
   }
 
   setupHandlers() {
-    // Window control handlers
     ipcMain.handle("window-minimize", () => {
-      if (this.windowManager.controlPanelWindow) {
-        this.windowManager.controlPanelWindow.minimize();
-      }
+      this.windowManager.minimizeControlPanel();
     });
 
     ipcMain.handle("window-maximize", () => {
-      if (this.windowManager.controlPanelWindow) {
-        if (this.windowManager.controlPanelWindow.isMaximized()) {
-          this.windowManager.controlPanelWindow.unmaximize();
-        } else {
-          this.windowManager.controlPanelWindow.maximize();
-        }
-      }
+      this.windowManager.maximizeControlPanel();
     });
 
     ipcMain.handle("window-close", () => {
-      if (this.windowManager.controlPanelWindow) {
-        this.windowManager.controlPanelWindow.close();
-      }
+      this.windowManager.closeControlPanel();
     });
 
     ipcMain.handle("window-is-maximized", () => {
-      if (this.windowManager.controlPanelWindow) {
-        return this.windowManager.controlPanelWindow.isMaximized();
-      }
-      return false;
+      return this.windowManager.isControlPanelMaximized();
     });
 
     ipcMain.handle("hide-window", () => {

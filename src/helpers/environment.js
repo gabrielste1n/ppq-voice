@@ -15,10 +15,18 @@ class EnvironmentManager {
       // Production packaged app paths
       path.join(process.resourcesPath, ".env"),
       path.join(process.resourcesPath, "app.asar.unpacked", ".env"),
-      path.join(app.getPath("userData"), ".env"), // User data directory
       // Legacy paths
       path.join(process.resourcesPath, "app", ".env"),
     ];
+
+    // Add user data directory path if app is available
+    if (app && app.getPath) {
+      try {
+        possibleEnvPaths.push(path.join(app.getPath("userData"), ".env"));
+      } catch (error) {
+        // App not ready yet, skip user data path
+      }
+    }
 
     let envLoaded = false;
 
@@ -43,63 +51,49 @@ class EnvironmentManager {
   }
 
   savePPQApiKey(key) {
-    try {
-      // Update the environment variable in memory for immediate use
-      process.env.PPQ_API_KEY = key;
-      // Persist all keys to file
-      this.saveAllKeysToEnvFile();
-      return { success: true };
-    } catch (error) {
-      // Silent error - already throwing
-      throw error;
-    }
+    // Update the environment variable in memory for immediate use
+    process.env.PPQ_API_KEY = key;
+    // Persist all keys to file
+    this.saveAllKeysToEnvFile();
+    return { success: true };
   }
 
   createProductionEnvFile(apiKey) {
-    try {
-      const envPath = path.join(app.getPath("userData"), ".env");
+    const envPath = path.join(app.getPath("userData"), ".env");
 
-      const envContent = `# PPQ Voice Environment Variables
+    const envContent = `# PPQ Voice Environment Variables
 # This file was created automatically for production use
 PPQ_API_KEY=${apiKey}
 `;
 
-      fs.writeFileSync(envPath, envContent, "utf8");
+    fs.writeFileSync(envPath, envContent, "utf8");
 
-      require("dotenv").config({ path: envPath });
+    require("dotenv").config({ path: envPath });
 
-      return { success: true, path: envPath };
-    } catch (error) {
-      // Silent error - already throwing
-      throw error;
-    }
+    return { success: true, path: envPath };
   }
 
   saveAllKeysToEnvFile() {
-    try {
-      const envPath = path.join(app.getPath("userData"), ".env");
-      
-      // Build env content with all current keys
-      let envContent = `# PPQ Voice Environment Variables
+    const envPath = path.join(app.getPath("userData"), ".env");
+
+    // Build env content with all current keys
+    let envContent = `# PPQ Voice Environment Variables
 # This file was created automatically for production use
 `;
-      
-      if (process.env.PPQ_API_KEY) {
-        envContent += `PPQ_API_KEY=${process.env.PPQ_API_KEY}\n`;
-      } else if (process.env.OPENAI_API_KEY) {
-        // Legacy fallback so existing environments continue to work
-        envContent += `PPQ_API_KEY=${process.env.OPENAI_API_KEY}\n`;
-      }
 
-      fs.writeFileSync(envPath, envContent, "utf8");
-      
-      // Reload the env file
-      require("dotenv").config({ path: envPath });
-
-      return { success: true, path: envPath };
-    } catch (error) {
-      throw error;
+    if (process.env.PPQ_API_KEY) {
+      envContent += `PPQ_API_KEY=${process.env.PPQ_API_KEY}\n`;
+    } else if (process.env.OPENAI_API_KEY) {
+      // Legacy fallback so existing environments continue to work
+      envContent += `PPQ_API_KEY=${process.env.OPENAI_API_KEY}\n`;
     }
+
+    fs.writeFileSync(envPath, envContent, "utf8");
+
+    // Reload the env file
+    require("dotenv").config({ path: envPath });
+
+    return { success: true, path: envPath };
   }
 }
 
