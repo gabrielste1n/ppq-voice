@@ -1,55 +1,138 @@
 @import "tailwindcss";
 
-:root {
-  /* PPQ Voice Modern Theme - Clean & Professional */
-  --color-primary: #4f46e5;
+@theme {
+  /* PPQ Voice Brand Colors - Orange Theme */
+  --color-primary: #fd4623;
+  --color-primary-hover: #e63e1f;
+  --color-primary-active: #cf361a;
   --color-primary-foreground: #ffffff;
+
   --color-secondary: #f5f5f5;
   --color-secondary-foreground: #171717;
+
   --color-muted: #f5f5f5;
   --color-muted-foreground: #737373;
-  --color-accent: #f5f5f5;
-  --color-accent-foreground: #171717;
+
+  --color-accent: #fff5f2;
+  --color-accent-foreground: #fd4623;
+
   --color-destructive: #dc2626;
   --color-destructive-foreground: #ffffff;
+
+  --color-success: #16a34a;
+  --color-success-foreground: #ffffff;
+
   --color-border: #e5e5e5;
   --color-input: #ffffff;
-  --color-ring: #4f46e5;
+  --color-ring: #fd4623;
+
   --color-background: #ffffff;
   --color-foreground: #171717;
+
   --color-card: #ffffff;
   --color-card-foreground: #171717;
+
   --color-popover: #ffffff;
   --color-popover-foreground: #171717;
-  --color-link: #4f46e5;
+
+  --color-link: #fd4623;
+
+  --radius: 0.5rem;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  /* CSS variables for non-Tailwind usage */
+  --color-primary: #fd4623;
+  --color-primary-hover: #e63e1f;
+  --color-primary-active: #cf361a;
+  --color-primary-foreground: #ffffff;
+
+  --color-secondary: #f5f5f5;
+  --color-secondary-foreground: #171717;
+
+  --color-muted: #f5f5f5;
+  --color-muted-foreground: #737373;
+
+  --color-accent: #fff5f2;
+  --color-accent-foreground: #fd4623;
+
+  --color-destructive: #dc2626;
+  --color-destructive-foreground: #ffffff;
+
+  --color-success: #16a34a;
+  --color-success-foreground: #ffffff;
+
+  --color-border: #e5e5e5;
+  --color-input: #ffffff;
+  --color-ring: #fd4623;
+
+  --color-background: #ffffff;
+  --color-foreground: #171717;
+
+  --color-card: #ffffff;
+  --color-card-foreground: #171717;
+
+  --color-popover: #ffffff;
+  --color-popover-foreground: #171717;
+
+  --color-link: #fd4623;
+
   --radius: 0.5rem;
 }
 
 .dark {
-  /* Dark mode - sophisticated and rich */
+  /* Dark mode - sophisticated with orange accents */
   --color-background: oklch(0.08 0 0);
   --color-foreground: oklch(0.95 0 0);
   --color-card: oklch(0.12 0 0);
   --color-card-foreground: oklch(0.95 0 0);
   --color-popover: oklch(0.12 0 0);
   --color-popover-foreground: oklch(0.95 0 0);
-  --color-primary: oklch(0.6 0.22 245);
+
+  /* Primary: Orange in dark mode (using oklch for better color management) */
+  --color-primary: oklch(0.65 0.2 25);
+  --color-primary-hover: oklch(0.7 0.22 25);
+  --color-primary-active: oklch(0.6 0.18 25);
   --color-primary-foreground: oklch(0.985 0 0);
+
+  /* Secondary */
   --color-secondary: oklch(0.18 0 0);
   --color-secondary-foreground: oklch(0.9 0 0);
+
+  /* Muted */
   --color-muted: oklch(0.15 0 0);
   --color-muted-foreground: oklch(0.6 0 0);
-  --color-accent: oklch(0.6 0.22 245);
-  --color-accent-foreground: oklch(0.985 0 0);
+
+  /* Accent: Subtle orange */
+  --color-accent: oklch(0.2 0.05 25);
+  --color-accent-foreground: oklch(0.75 0.2 25);
+
+  /* Destructive */
   --color-destructive: oklch(0.7 0.22 25);
+  --color-destructive-foreground: oklch(0.985 0 0);
+
+  /* Success */
+  --color-success: oklch(0.65 0.2 145);
+  --color-success-foreground: oklch(0.985 0 0);
+
+  /* Border, Input, Ring */
   --color-border: oklch(0.22 0 0);
   --color-input: oklch(0.18 0 0);
-  --color-ring: oklch(0.6 0.22 245);
+  --color-ring: oklch(0.65 0.2 25);
+
+  /* Link */
+  --color-link: oklch(0.7 0.2 25);
 }
 
 @layer base {
   * {
-    @apply border-gray-200 outline-indigo-500/50;
+    @apply border-[var(--color-border)];
+    outline-color: var(--color-ring);
+    outline-opacity: 0.5;
   }
   
   body {
@@ -195,10 +278,3 @@ a:hover {
   color: #2E3659;
 }
 
-/* Additional CSS variables for theme support */
-:root {
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-}

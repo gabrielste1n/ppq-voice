@@ -479,7 +479,7 @@ export default function SettingsPage({
                       });
                     }}
                     disabled={installInitiated}
-                    className="w-full bg-blue-600 hover:bg-blue-700"
+                    className="w-full"
                   >
                     {installInitiated ? (
                       <>
@@ -496,17 +496,17 @@ export default function SettingsPage({
                 )}
 
                 {updateInfo.version && (
-                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <h4 className="font-medium text-blue-900 mb-2">
+                  <div className="p-4 bg-accent border border-border rounded-lg">
+                    <h4 className="font-medium text-foreground mb-2">
                       Update v{updateInfo.version}
                     </h4>
                     {updateInfo.releaseDate && (
-                      <p className="text-sm text-blue-700 mb-2">
+                      <p className="text-sm text-muted-foreground mb-2">
                         Released: {new Date(updateInfo.releaseDate).toLocaleDateString()}
                       </p>
                     )}
                     {updateInfo.releaseNotes && (
-                      <div className="text-sm text-blue-800">
+                      <div className="text-sm text-foreground">
                         <p className="font-medium mb-1">What's New:</p>
                         <div className="whitespace-pre-wrap">{updateInfo.releaseNotes}</div>
                       </div>
@@ -621,8 +621,8 @@ export default function SettingsPage({
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm mb-6">
                 <div className="text-center p-4 border border-gray-200 rounded-xl bg-white">
-                  <div className="w-8 h-8 mx-auto mb-2 bg-indigo-600 rounded-lg flex items-center justify-center">
-                    <Keyboard className="w-4 h-4 text-white" />
+                  <div className="w-8 h-8 mx-auto mb-2 bg-primary rounded-lg flex items-center justify-center">
+                    <Keyboard className="w-4 h-4 text-primary-foreground" />
                   </div>
                   <p className="font-medium text-gray-800 mb-1">
                     Default Hotkey
@@ -723,8 +723,8 @@ export default function SettingsPage({
               </p>
             </div>
 
-            <div className="space-y-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
-              <h4 className="font-medium text-blue-900">PPQ API Key</h4>
+            <div className="space-y-4 p-4 bg-accent border border-border rounded-xl">
+              <h4 className="font-medium text-foreground">PPQ API Key</h4>
               <ApiKeyInput
                 apiKey={ppqApiKey}
                 setApiKey={setPpqApiKey}
@@ -734,7 +734,7 @@ export default function SettingsPage({
                     <button
                       type="button"
                       onClick={openOpenAIKeys}
-                      className="text-blue-600 underline hover:text-blue-700"
+                      className="text-link underline hover:opacity-80"
                     >
                       Open the OpenAI console
                     </button>
@@ -781,7 +781,7 @@ export default function SettingsPage({
                   Reasoning Model
                 </label>
                 <select
-                  className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                  className="w-full rounded-md border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/30"
                   value={reasoningModel}
                   onChange={(event) => setReasoningModel(event.target.value)}
                   disabled={!useReasoningModel}

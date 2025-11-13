@@ -34,7 +34,7 @@ export function UnifiedModelPickerCompact({
         <button
           type="button"
           onClick={handleOpenAIModels}
-          className="text-xs text-blue-600 underline hover:text-blue-700"
+          className="text-xs text-link underline hover:opacity-80"
         >
           Explore models on OpenAI ↗
         </button>
@@ -45,8 +45,8 @@ export function UnifiedModelPickerCompact({
           onClick={() => onModelSelect(model.value)}
           className={`w-full p-3 rounded-lg border-2 text-left transition-all ${
             selectedModel === model.value
-              ? "border-indigo-500 bg-indigo-50"
-              : "border-gray-200 bg-white hover:border-gray-300"
+              ? "border-primary bg-accent"
+              : "border-border bg-background hover:border-muted"
           }`}
         >
           <div className="flex items-center justify-between">
@@ -73,7 +73,7 @@ export function UnifiedModelPickerCompact({
               )}
             </div>
             {selectedModel === model.value && (
-              <span className="text-xs text-indigo-600 bg-indigo-100 px-2 py-1 rounded-full font-medium">
+              <span className="text-xs text-primary bg-accent px-2 py-1 rounded-full font-medium">
                 ✓ Selected
               </span>
             )}

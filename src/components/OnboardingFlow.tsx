@@ -230,8 +230,8 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
             className="text-center space-y-6"
             style={{ fontFamily: "Noto Sans, sans-serif" }}
           >
-            <div className="w-16 h-16 mx-auto bg-blue-100 rounded-full flex items-center justify-center">
-              <Sparkles className="w-8 h-8 text-blue-600" />
+            <div className="w-16 h-16 mx-auto bg-accent rounded-full flex items-center justify-center">
+              <Sparkles className="w-8 h-8 text-primary" />
             </div>
             <div>
               <h2
@@ -247,9 +247,9 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
                 Let's set up your voice dictation in just a few simple steps.
               </p>
             </div>
-            <div className="bg-blue-50/50 p-4 rounded-lg border border-blue-200/60">
+            <div className="bg-accent/50 p-4 rounded-lg border border-accent">
               <p
-                className="text-sm text-blue-800"
+                className="text-sm text-accent-foreground"
                 style={{ fontFamily: "Noto Sans, sans-serif" }}
               >
                 🎤 Turn your voice into text instantly
@@ -275,12 +275,12 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
             </div>
 
             <div className="grid gap-6 md:grid-cols-2">
-              <div className="space-y-4 p-6 bg-white border border-blue-100 rounded-2xl shadow-sm">
+              <div className="space-y-4 p-6 bg-white border border-border rounded-2xl shadow-sm">
                 <div className="flex items-center gap-3">
-                  <Key className="w-8 h-8 text-blue-600" />
+                  <Key className="w-8 h-8 text-primary" />
                   <div>
-                    <h3 className="font-semibold text-blue-900">PPQ API Key</h3>
-                    <p className="text-sm text-blue-700">
+                    <h3 className="font-semibold text-foreground">PPQ API Key</h3>
+                    <p className="text-sm text-muted-foreground">
                       This single key powers Groq Whisper for transcription and Llama/Mixtral for clean-up.
                     </p>
                   </div>
@@ -290,11 +290,11 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
                   setApiKey={setApiKey}
                   label="PPQ API Key"
                   helpText={
-                    <span className="text-xs text-blue-800">
+                    <span className="text-xs text-muted-foreground">
                       Need a key?{" "}
                       <button
                         type="button"
-                        className="text-blue-600 underline hover:text-blue-700"
+                        className="text-link underline hover:opacity-80"
                         onClick={openOpenAIKeys}
                       >
                         Open it from OpenAI
@@ -303,10 +303,10 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
                     </span>
                   }
                 />
-                <p className="text-xs text-blue-800">
+                <p className="text-xs text-muted-foreground">
                   Keys stay on your device and are sent directly to Groq&apos;s APIs over HTTPS—never to PPQ servers.
                 </p>
-                <div className="flex items-center justify-between text-xs text-blue-900 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                <div className="flex items-center justify-between text-xs text-foreground bg-accent border border-border rounded-lg px-3 py-2">
                   <span>
                     {skipAuth
                       ? "Skipping for now. We'll remind you in Settings."
@@ -317,7 +317,6 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
                     variant="outline"
                     size="sm"
                     onClick={toggleSkipAuth}
-                    className="text-blue-700 border-blue-300 hover:bg-blue-100"
                   >
                     {skipAuth ? "Require Key" : "Skip for now"}
                   </Button>
@@ -339,8 +338,8 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
               </div>
             </div>
 
-            <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
-              <p className="text-sm text-blue-900">
+            <div className="bg-accent p-4 rounded-xl border border-border">
+              <p className="text-sm text-foreground">
                 PPQ Voice is now fully cloud-only—no local installers or custom URLs. Just plug in your key and start speaking.
               </p>
             </div>
@@ -452,28 +451,28 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
             </div>
 
             <div className="space-y-6">
-              <div className="bg-blue-50/50 p-6 rounded-lg border border-blue-200/60">
+              <div className="bg-accent/50 p-6 rounded-lg border border-accent">
                 <h3
-                  className="font-semibold text-blue-900 mb-3"
+                  className="font-semibold text-foreground mb-3"
                   style={{ fontFamily: "Noto Sans, sans-serif" }}
                 >
                   Practice with Your Hotkey
                 </h3>
                 <p
-                  className="text-sm text-blue-800 mb-4"
+                  className="text-sm text-accent-foreground mb-4"
                   style={{ fontFamily: "Noto Sans, sans-serif" }}
                 >
                   <strong>Step 1:</strong> Click in the text area below to place
                   your cursor there.
                   <br />
                   <strong>Step 2:</strong> Press{" "}
-                  <kbd className="bg-white px-2 py-1 rounded text-xs font-mono border border-blue-200">
+                  <kbd className="bg-white px-2 py-1 rounded text-xs font-mono border border-border">
                     {readableHotkey}
                   </kbd>{" "}
                   to start recording, then speak something.
                   <br />
                   <strong>Step 3:</strong> Press{" "}
-                  <kbd className="bg-white px-2 py-1 rounded text-xs font-mono border border-blue-200">
+                  <kbd className="bg-white px-2 py-1 rounded text-xs font-mono border border-border">
                     {readableHotkey}
                   </kbd>{" "}
                   again to stop and see your transcribed text appear where your
@@ -563,7 +562,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
               </p>
             </div>
 
-            <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-6 rounded-lg">
+            <div className="bg-accent p-6 rounded-lg">
               <h3 className="font-semibold text-gray-900 mb-3">
                 Your Setup Summary:
               </h3>
@@ -600,8 +599,8 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
               </div>
             </div>
 
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <p className="text-sm text-blue-800">
+            <div className="bg-accent p-4 rounded-lg">
+              <p className="text-sm text-accent-foreground">
                 <strong>Pro tip:</strong> You can always change these settings
                 later in the Control Panel.
               </p>

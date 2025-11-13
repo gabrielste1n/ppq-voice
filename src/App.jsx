@@ -310,7 +310,7 @@ export default function App() {
         };
       case "recording":
         return {
-          className: `${baseClasses} bg-blue-600 cursor-pointer`,
+          className: `${baseClasses} bg-primary cursor-pointer`,
           tooltip: "Recording...",
         };
       case "processing":
@@ -422,7 +422,7 @@ export default function App() {
 
               {/* State indicator ring for recording */}
               {micState === "recording" && (
-                <div className="absolute inset-0 rounded-full border-2 border-blue-300 animate-pulse"></div>
+                <div className="absolute inset-0 rounded-full border-2 border-primary/30 animate-pulse"></div>
               )}
 
               {/* State indicator ring for processing */}

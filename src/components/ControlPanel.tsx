@@ -169,7 +169,7 @@ export default function ControlPanel() {
               (updateStatus.updateAvailable ||
                 updateStatus.updateDownloaded) && (
                 <div className="relative">
-                  <div className="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <div className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full"></div>
                 </div>
               )}
             <SupportDropdown />
@@ -206,7 +206,7 @@ export default function ControlPanel() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
-                  <FileText size={18} className="text-indigo-600" />
+                  <FileText size={18} className="text-primary" />
                   Recent Transcriptions
                 </CardTitle>
                 <div className="flex gap-2">
@@ -226,8 +226,8 @@ export default function ControlPanel() {
             <CardContent>
               {isLoading ? (
                 <div className="text-center py-8">
-                  <div className="w-8 h-8 mx-auto mb-3 bg-indigo-600 rounded-lg flex items-center justify-center">
-                    <span className="text-white text-sm">📝</span>
+                  <div className="w-8 h-8 mx-auto mb-3 bg-primary rounded-lg flex items-center justify-center">
+                    <span className="text-primary-foreground text-sm">📝</span>
                   </div>
                   <p className="text-neutral-600">Loading transcriptions...</p>
                 </div>
